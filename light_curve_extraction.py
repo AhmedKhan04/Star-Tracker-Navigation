@@ -1,4 +1,3 @@
-
 import numpy as np 
 import scipy as sp 
 import matplotlib.pyplot as plt
@@ -19,11 +18,11 @@ from photutils.centroids import centroid_2dg
 from photutils.background import Background2D, MedianBackground
 import pandas as pd 
 from datetime import datetime
+import scipy.stats as stats
+import copy 
 
 
-
-
-
+import modeling as sm 
 
 #import cv2
 
@@ -59,7 +58,19 @@ def get_midpoint(img):
     ny, nx = img.shape
     x = nx // 2
     y = ny // 2
-    return (x, y)   
+    return (x, y)
+
+
+def drop_outliers(data_input, time_input, threshold=2):
+    #use Z score to drop outliers
+    data = copy.deepcopy(data_input)
+    time = copy.deepcopy(time_input)
+    z_scores = np.abs(stats.zscore(data))
+    #threshold = 2
+    outlier_indices = np.where(z_scores > threshold)[0]
+    filtered_data = np.delete(data, outlier_indices)
+    filtered_time = np.delete(time, outlier_indices)
+    return filtered_data, filtered_time
 
 # i am going to calibrate my picture here since we do not have a proper class structure yet....
 
@@ -548,7 +559,16 @@ for filename in pd.read_csv("real_data_map_IM Tauri 2025-11-15.csv")["FITS File 
     """
 
 
+photom_list, date_array = drop_outliers(photom_list, date_array, threshold=2)
+
 plt.scatter(date_array, photom_list)
+plt.show()
+tuples_of_photom = list(zip(date_array, photom_list))
+print(tuples_of_photom[0:5])
+
+
+model = sm.StarModeling(tuples_of_photom)
+model.plotsidebyside_deep("IM Tauri")
 
 df = pd.DataFrame({
     'Time': date_array, 'Flux': photom_list
