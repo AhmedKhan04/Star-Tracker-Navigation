@@ -445,6 +445,7 @@ class StarModeling:
             """
             powerOfPeaks, _ = self.identifyPeaks_non_dynamic(nameOfStar)
             if(powerOfPeaks == -1):
+                print(f"{nameOfStar} has too many peaks to process deeply.")
                 return [-10], 0
             print(len(powerOfPeaks))
             powerOfPeaks = powerOfPeaks.value
@@ -452,6 +453,7 @@ class StarModeling:
             amplitude_scale = 0.5
             listofsines, lc, _ = self.guess_deep(nameOfStar, amplitude_scale, frequencyfitted2, search_result2, powers2)
             if(listofsines == [0]):
+                print(f"{nameOfStar} has too many peaks to process deeply.")
                 return [-10],[0],"0"
             listofindexs =[]
             addedTogether = 0
