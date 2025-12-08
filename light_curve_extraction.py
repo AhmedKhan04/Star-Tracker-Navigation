@@ -20,6 +20,9 @@ import pandas as pd
 from datetime import datetime
 import scipy.stats as stats
 import copy 
+import astropy.units as u
+from astropy.coordinates import SkyCoord
+from astropy.wcs import WCS
 
 
 import modeling as sm 
@@ -35,7 +38,7 @@ initial = True
 
 photom_list = []
 light_curve_extraction = False
-plotting = False
+plotting = True
 date_array = []
 
 
@@ -60,7 +63,11 @@ class LightCurveExtractor:
     def load_calibrated(self, data):
         #data = fits.getdata(file_path).astype(float)
         flat_norm = self.flat / np.median(self.flat)
-        return (data - self.dark)
+        try:
+            return (data - self.bias - self.dark) / flat_norm
+        except Exception as e:
+            print(f"Error in load_calibrated: {e}")
+            return (data - self.dark)
         #return (data - self.bias - self.dark) / flat_norm
 
 
@@ -123,6 +130,12 @@ class LightCurveExtractor:
 #folder_path = r"images\WASP-12b_example_uncalibrated_images\uncalibrated"
 
     def extract_light_curve(self, normalize=False):
+
+        cords = None 
+        w = None 
+        ra = None
+        dec = None 
+
         for filename in pd.read_csv(self.data_map)["FITS File Path"]:
             #print(filename)
             file_path = filename #os.path.join(folder_path, filename)
@@ -142,6 +155,13 @@ class LightCurveExtractor:
             #sci_data_second = hdul[0].data.astype(float)
 
             date_obs = hdul[0].header.get('DATE-AVG')
+
+            if date_obs is None:
+                date_obs = hdul[0].header.get('DATE-OBS')
+                #print(f"Using DATE-OBS: {date_obs}")
+                #date_obs_clean =
+
+
             date_obs.split('/')[0].strip()
             
             date_obs_clean = date_obs.split("'/")[0].strip()  
@@ -178,6 +198,14 @@ class LightCurveExtractor:
             #print(calibrated_second) 
             calibrated_second = self.load_calibrated(calibrated_second)
             #calibrated_second[:250, :250] = 0
+
+            try: 
+                w = WCS(hdul[0].header)
+                ra = hdul[0].header['CRVAL1']
+                dec = hdul[0].header['CRVAL2']
+            except Exception as e:
+                print("WCS information not found in header:", e)
+                print("Using last known coordinates or image center.")
 
 
             hdul.close()
@@ -241,8 +269,21 @@ class LightCurveExtractor:
             
             
             #cords = np.array([(560, 980)])
-            cords = self.get_max(calibrated_second)
+            #cords = self.get_max(calibrated_second)
             #cords = np.array([(560, 980)])
+
+
+            try: 
+                coord = SkyCoord(ra*u.deg, dec*u.deg)
+                px, py = w.world_to_pixel(coord)
+                cords = np.array([(py, px)]) 
+            except Exception as e:
+                print("WCS conversion failed:", e)
+                print("Using last known coordinates or image center.")
+
+            print("Target appears at pixel coordinates:")
+            print("x =", px)
+            print("y =", py)
             
             print(f"initial centering point: {cords}")
             #cords = get_max(calibrated_second) # coordinates from image A
@@ -265,7 +306,7 @@ class LightCurveExtractor:
             #aper = CircularAperture(cords, r=ap_radius)
             #ann = CircularAnnulus(cords, r_in=ann_inner, r_out=ann_inner+ann_width)
 
-            ny, nx = calibrated_second.shape
+            nx, ny = calibrated_second.shape
             t_p = cords_transformed
             x, y = t_p[0]
             x, y = int(x), int(y)
@@ -278,7 +319,9 @@ class LightCurveExtractor:
 
             mask = np.zeros_like(calibrated_second)
             mask[y1:y2, x1:x2] = 1
-
+            print("------")
+            print(y1, y2, x1, x2)
+            print("------")
             #masked_data = calibrated_second *  mask
 
             #plt.imshow(masked_data, cmap='gray', origin='lower',
@@ -296,12 +339,13 @@ class LightCurveExtractor:
                 
                 data_background_subtracted = calibrated_second - background
                 PRE_MASK = data_background_subtracted
+                plt.imshow(data_background_subtracted, cmap='Grays', origin='lower', vmin= np.percentile(data_background_subtracted, 5), vmax=np.percentile(data_background_subtracted, 95))
+                plt.show() 
                 data_background_subtracted = data_background_subtracted[x1:x2, y1:y2]
                 #plt.imshow(calibrated_second, cmap='Blues', origin='lower', vmin=median_s - 2*std_s, vmax=median_s + 5*std_s)
                 data_background_subtracted = -np.min(data_background_subtracted) + data_background_subtracted
                 
-                #plt.imshow(data_background_subtracted, cmap='Grays', origin='lower') #, vmin=median_s - 2*std_s, vmax=median_s + 5*std_s)
-
+              
                 smoothed = sp.ndimage.gaussian_filter(data_background_subtracted, sigma=2)
             
                 x4, y4 = centroid_2dg(smoothed)

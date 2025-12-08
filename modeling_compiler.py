@@ -55,6 +55,7 @@ class ModelingCompiler:
             #extractor.save_lightcurve(star_name, photom_list, date_array)
 
             model, _, model_string = sm.StarModeling(tuples_values=self.tuple_results[i]).getCompositeSine2_deep(self.star_names[i])
+            model  =  model / np.max(np.abs(model))   #normalize to -1 to 1 model / np.max(model) 
             self.models.append((date_array, model, model_string))
 
 
@@ -65,18 +66,20 @@ if __name__ == "__main__":
     #paths
 
     bias_path = "calibration_frames/Bias_1.0ms_Bin1_ISO100_20251205-065105_32.0F_0001.fit"
-    dark_path = "calibration_frames/NGC0891 darks_00015.fits"
+    dark_path = "calibration_frames\Dark_30.0s_Bin1_ISO100_20251205-065203_32.0F_0001.fit" #"calibration_frames/NGC0891 darks_00015.fits"
     flat_path = "calibration_frames/Flat_300.0ms_Bin1_ISO100_20251205-064251_32.0F_0001.fit"
     data_map_paths = [
         #"data_maps/real_data_map_Alderamin (Alpha Cephi) 2025-11-15.csv",
-        "data_maps/real_data_map_IM Tauri 2025-11-15.csv"
+        #"data_maps/real_data_map_IM Tauri 2025-11-15.csv"
+        "data_maps/real_data_map_97 Psc.csv"
     ]
 
     # star names
 
     star_names = [
         #"Alderamin",
-        "IM Tauri"
+        #"IM Tauri"
+        "97 Psc"
     ]
 
     # Load calibration frames
