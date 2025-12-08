@@ -1,4 +1,3 @@
-
 import numpy as np 
 import scipy as sp 
 import matplotlib.pyplot as plt
@@ -19,17 +18,49 @@ from photutils.centroids import centroid_2dg
 from photutils.background import Background2D, MedianBackground
 import pandas as pd 
 from datetime import datetime
-
-
-
+import scipy.stats as stats
+import copy 
 
 
 
 #import cv2
 
-def load_calibrated(file_path, bias, dark, flat_norm):
-    data = fits.getdata(file_path).astype(float)
-    return (data - bias - dark) / flat_norm
+
+
+####
+
+# Global variables
+initial = True 
+
+photom_list = []
+light_curve_extraction = False
+plotting = False
+date_array = []
+
+
+####
+
+class LightCurveExtractor:
+
+    def __init__(self, bias, dark, flat , data_map, star_name):
+        #self.file_list = file_list
+        self.bias = bias
+        self.dark = dark
+        self.flat = flat
+        self.data_map = data_map
+        self.star_name = star_name
+
+        self.photom_list = list([])
+        self.date_array = list([])
+
+        self.saving_constant = 0 
+
+
+    def load_calibrated(self, data):
+        #data = fits.getdata(file_path).astype(float)
+        flat_norm = self.flat / np.median(self.flat)
+        return (data - self.dark)
+        #return (data - self.bias - self.dark) / flat_norm
 
 
 def get_max(img): 
@@ -98,20 +129,20 @@ for filename in pd.read_csv("real_data_map_Tau Cygni.csv")["FITS File Path"]:
     ############
     # OVERRIDE FOR TESTING
 
-    hdul = fits.open(file_path)
-    print("\n=== FITS Header ===")
-    print(repr(hdul[0].header)) 
-    #sci_data_second = hdul[0].data.astype(float)
+            hdul = fits.open(file_path)
+            #print("\n=== FITS Header ===")
+            #print(repr(hdul[0].header)) 
+            #sci_data_second = hdul[0].data.astype(float)
 
-    date_obs = hdul[0].header.get('DATE-AVG')
-    date_obs.split('/')[0].strip()
-    
-    date_obs_clean = date_obs.split("'/")[0].strip()  
-    print(date_obs)
-    if '.' in date_obs_clean:
-        date_part, frac = date_obs_clean.split('.')
-        frac = frac[:6]  # keep only first 6 digits
-        date_obs_clean = f"{date_part}.{frac}"
+            date_obs = hdul[0].header.get('DATE-AVG')
+            date_obs.split('/')[0].strip()
+            
+            date_obs_clean = date_obs.split("'/")[0].strip()  
+            #print(date_obs)
+            if '.' in date_obs_clean:
+                date_part, frac = date_obs_clean.split('.')
+                frac = frac[:6]  # keep only first 6 digits
+                date_obs_clean = f"{date_part}.{frac}"
 
     # (example: ''2025-11-03T00:41:16.2910676' / System Clock:Est. Frame Mid Point')
     #dt = datetime.fromisoformat(date_obs)
@@ -193,19 +224,19 @@ for filename in pd.read_csv("real_data_map_Tau Cygni.csv")["FITS File Path"]:
 
     #cords  = list(zip(sources["xcentroid"], sources["ycentroid"]))
 
-    #cords = np.array([(3499.825554241658, 39.37473823979557)])  # coordinates from image A
-    #cords = np.array([(500, 950)])  # coordinates from image A
-    #cords = np.array([(980, 560)])  # coordinates from image A
-    
-    
-    #cords = np.array([(560, 980)])
-    cords = get_max(calibrated_second)
-    #cords = np.array([(560, 980)])
-    
-    print(f"initial centering point: {cords}")
-    #cords = get_max(calibrated_second) # coordinates from image A
-    #cords = np.array([(2401.93, 2086.15)])  # coordinates from image A
-    #transform, (src_list, ref_list) = aa.find_transform(calibrated_second, calibrated)
+            #cords = np.array([(3499.825554241658, 39.37473823979557)])  # coordinates from image A
+            #cords = np.array([(500, 950)])  # coordinates from image A
+            #cords = np.array([(980, 560)])  # coordinates from image A
+            
+            
+            #cords = np.array([(560, 980)])
+            cords = self.get_max(calibrated_second)
+            #cords = np.array([(560, 980)])
+            
+            print(f"initial centering point: {cords}")
+            #cords = get_max(calibrated_second) # coordinates from image A
+            #cords = np.array([(2401.93, 2086.15)])  # coordinates from image A
+            #transform, (src_list, ref_list) = aa.find_transform(calibrated_second, calibrated)
 
     #print(transform)  # see what transform was found
 
@@ -234,10 +265,10 @@ for filename in pd.read_csv("real_data_map_Tau Cygni.csv")["FITS File Path"]:
     x1, x2 = max(0, x - half_box), min(nx, x + half_box)
     y1, y2 = max(0, y - half_box), min(ny, y + half_box)
 
-    mask = np.zeros_like(calibrated_second)
-    mask[y1:y2, x1:x2] = 1
+            mask = np.zeros_like(calibrated_second)
+            mask[y1:y2, x1:x2] = 1
 
-    #masked_data = calibrated_second *  mask
+            #masked_data = calibrated_second *  mask
 
     #plt.imshow(masked_data, cmap='gray', origin='lower',
             #vmin=median_s - 2*std_s, vmax=median_s + 5*std_s)
@@ -264,50 +295,50 @@ for filename in pd.read_csv("real_data_map_Tau Cygni.csv")["FITS File Path"]:
         
         #plt.imshow(data_background_subtracted, cmap='Grays', origin='lower') #, vmin=median_s - 2*std_s, vmax=median_s + 5*std_s)
 
-        smoothed = sp.ndimage.gaussian_filter(data_background_subtracted, sigma=2)
-       
-        x4, y4 = centroid_2dg(smoothed)
-        #plt.scatter(x4, y4, color='red', s=10)
+                smoothed = sp.ndimage.gaussian_filter(data_background_subtracted, sigma=2)
+            
+                x4, y4 = centroid_2dg(smoothed)
+                #plt.scatter(x4, y4, color='red', s=10)
 
         #plt.show()
 
-        #plt.imshow(data_background_subtracted, cmap='Grays', origin='lower')    
-        #plt.show()
-        #print(f"Initial coords: {(x4, y4)}")
-        #print(f"Box limits: x({x1}, {x2}) y({y1}, {y2})")
-        cords_transformed = np.array([(x4 + y1, y4 + x1)])
-        #print(f"Centroided coords: {cords_transformed}")
-        #plt.figure()
+                #plt.imshow(data_background_subtracted, cmap='Grays', origin='lower')    
+                #plt.show()
+                #print(f"Initial coords: {(x4, y4)}")
+                #print(f"Box limits: x({x1}, {x2}) y({y1}, {y2})")
+                cords_transformed = np.array([(x4 + y1, y4 + x1)])
+                #print(f"Centroided coords: {cords_transformed}")
+                #plt.figure()
+                
+                #plt.imshow(data_background_subtracted, cmap='Blues', origin='lower')
+                #plt.plot(x4, y4, 'mx', label='2D Gaussian')
+                
+                #plt.legend()
+                #plt.show()
+                radii = np.arange(1,15)
+                cog = CurveOfGrowth(data_background_subtracted, (x4,y4), radii, mask=None)
+                #cog = RadialProfile(data_background_subtracted, (x4,y4), radii, mask=None)
+                growth_rate = np.diff(cog.profile)
+                growth_rate = np.diff(growth_rate) # second derivative
+                try:  
+                    optimal_index  = np.where(growth_rate < 0)[0][0] 
+                    optimal_radius = radii[optimal_index -1 ] # +1 because of the double diff 
+                except IndexError as e:
+                    print(e)
+                    optimal_index = optimal_index # use last used index
+                    optimal_radius = radii[optimal_index]
+                print("Optimal aperture radius:", optimal_radius)
         
-        #plt.imshow(data_background_subtracted, cmap='Blues', origin='lower')
-        #plt.plot(x4, y4, 'mx', label='2D Gaussian')
-        
-        #plt.legend()
-        #plt.show()
-        radii = np.arange(1,15)
-        cog = CurveOfGrowth(data_background_subtracted, (x4,y4), radii, mask=None)
-        #cog = RadialProfile(data_background_subtracted, (x4,y4), radii, mask=None)
-        growth_rate = np.diff(cog.profile)
-        growth_rate = np.diff(growth_rate) # second derivative
-        try:  
-            optimal_index  = np.where(growth_rate < 0)[0][0] 
-            optimal_radius = radii[optimal_index -1 ] # +1 because of the double diff 
-        except IndexError as e:
-            print(e)
-            optimal_index = optimal_index # use last used index
-            optimal_radius = radii[optimal_index]
-        print("Optimal aperture radius:", optimal_radius)
-  
-        #threshold = 0.1* np.max(growth_rate)  # e.g., 1% of max growth
-        #optimal_index = np.where(growth_rate < threshold)[0][0]
-        #optimal_radius = radii[(optimal_index)]
-        #print("Optimal aperture radius:", optimal_radius)
-        if(plotting == True):
-            plt.figure()
-            plt.imshow(data_background_subtracted, cmap='Grays', origin='lower')    
-            plt.colorbar(label="Flux (ADU)")
-            plt.xlabel("X [pixels]")
-            plt.ylabel("Y [pixels]")
+                #threshold = 0.1* np.max(growth_rate)  # e.g., 1% of max growth
+                #optimal_index = np.where(growth_rate < threshold)[0][0]
+                #optimal_radius = radii[(optimal_index)]
+                #print("Optimal aperture radius:", optimal_radius)
+                if(plotting == True):
+                    plt.figure()
+                    plt.imshow(data_background_subtracted, cmap='Grays', origin='lower')    
+                    plt.colorbar(label="Flux (ADU)")
+                    plt.xlabel("X [pixels]")
+                    plt.ylabel("Y [pixels]")
 
         # overlay aperture circles
         indexed_apertures = []
