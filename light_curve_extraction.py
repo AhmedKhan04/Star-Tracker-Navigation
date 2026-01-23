@@ -38,7 +38,7 @@ initial = True
 
 photom_list = []
 light_curve_extraction = False
-plotting = True
+plotting = False
 date_array = []
 
 
@@ -339,8 +339,8 @@ class LightCurveExtractor:
                 
                 data_background_subtracted = calibrated_second - background
                 PRE_MASK = data_background_subtracted
-                plt.imshow(data_background_subtracted, cmap='Grays', origin='lower', vmin= np.percentile(data_background_subtracted, 5), vmax=np.percentile(data_background_subtracted, 95))
-                plt.show() 
+                #plt.imshow(data_background_subtracted, cmap='Grays', origin='lower', vmin= np.percentile(data_background_subtracted, 5), vmax=np.percentile(data_background_subtracted, 95))
+                #plt.show() 
                 data_background_subtracted = data_background_subtracted[x1:x2, y1:y2]
                 #plt.imshow(calibrated_second, cmap='Blues', origin='lower', vmin=median_s - 2*std_s, vmax=median_s + 5*std_s)
                 data_background_subtracted = -np.min(data_background_subtracted) + data_background_subtracted
