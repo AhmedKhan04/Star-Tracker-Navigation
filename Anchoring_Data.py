@@ -7,6 +7,7 @@ import lightkurve as lk
 import time 
 import pandas as pd
 
+import modeling as sm
 
 
 class anchoringData:
@@ -18,10 +19,20 @@ class anchoringData:
         self.c  = 299792458  # (m/s) speed of light
         self.time_array, self.flux_array = self.pull_lightcurve_data(NameStar)
         self.r_earth = get_body_barycentric(body = "earth", time=  self.time_array).xyz.to(u.m)  # shape: (3, N)
-        print(self.r_earth.unit)
+        #print(self.r_earth.unit)
         self.star_coords = SkyCoord.from_name(NameStar)
         self.time_delay = None #computer in get_anchored_lightcurve
         self.t_Earth, self.flux_Earth = self.get_anchored_lightcurve()
+        if (self.flux_Earth.unit is None):
+            self.flux_Earth = self.flux_Earth * u.luminosity  # assign unit if none
+        if (self.t_Earth.unit is not u.day):
+            print("Assigning unit to time array")
+            self.t_Earth = self.t_Earth * u.day  # assign unit if none
+        
+        modeling_instance = sm.StarModeling(tuples_values=list(zip(self.t_Earth.value, self.flux_Earth.value)))
+        self.model_ref_model, _, self.model_ref_model_string = modeling_instance.getCompositeSine2_deep(self.NameStar)
+
+
 
          
 
@@ -82,7 +93,7 @@ class anchoringData:
             'Flux_Earth': self.flux_Earth.value
         }).to_csv(filename, index=False)
         
-       
+    
 if __name__ == "__main__":
     star_name = "Alderamin"
     anchoring_instance = anchoringData(star_name)
@@ -90,7 +101,7 @@ if __name__ == "__main__":
     
     # Plot comparison
     anchoring_instance.plot_comparison()
-    anchoring_instance.save_anchored_lightcurve(f"Shifted_LC/{star_name}_anchored_lightcurve_{int(time.time() * 10000)}.csv")
+    #anchoring_instance.save_anchored_lightcurve(f"Shifted_LC/{star_name}_anchored_lightcurve_{int(time.time() * 10000)}.csv")
 
 
     plt.show()

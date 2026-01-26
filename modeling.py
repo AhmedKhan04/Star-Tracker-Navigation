@@ -113,7 +113,17 @@ class StarModeling:
                 else: 
                     filtered_peaks.append(peaks[i])
         if(len(pg.frequency[filtered_peaks]) > 10):
-            return -1, 0        
+            #return -1, 0        
+            print(len(filtered_peaks))  
+            powers_2 = pg.power[filtered_peaks].value
+            #print(powers_2)
+            new_filter = np.argsort(powers_2)[-10:]
+            #print(new_filter)
+            #print(type(new_filter))
+            filtered_peaks = np.array(filtered_peaks)
+            filtered_peaks = filtered_peaks[new_filter] # keep top 10 peaks
+            #filtered_peaks = filtered_peaks[list(int(np.argsort(powers_2)[-7:]))] # keep top 10 peaks
+
         freqs = pg.frequency[filtered_peaks]#.value
         powers = pg.power[filtered_peaks]#.value
 
@@ -158,8 +168,21 @@ class StarModeling:
                         filtered_peaks[-1]= peaks[i]
                 else: 
                     filtered_peaks.append(peaks[i])
+        #print(filtered_peaks)
         if(len(pg.frequency[filtered_peaks]) > 10):
-            return -1, 0
+            #return -1, 0
+            
+            powers_2 = pg.power[filtered_peaks].value
+            #print(powers_2)
+            #print(powers_2)
+            #print("hello!" )
+            new_filter = np.argsort(powers_2)[-10:]
+            #print(new_filter)
+            #print(type(new_filter))
+            filtered_peaks = np.array(filtered_peaks)
+            filtered_peaks = filtered_peaks[new_filter] # keep top 10 peaks
+            #print(filtered_peaks)
+
         powers = pg.power[filtered_peaks]
         return powers, ltcurves
 
