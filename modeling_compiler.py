@@ -7,6 +7,8 @@ import modeling as sm
 import light_curve_extraction as lce
 import pandas as pd 
 
+import Anchoring_Data as AD 
+import comparision_models as CE 
 
 #compile all 
 
@@ -28,7 +30,8 @@ class ModelingCompiler:
         self.photom_results = [] 
         self.compiled_dates = []
         self.tuple_results = []
-        self.models = [] 
+        self.COMP_LIST = [None] * len(star_names)
+        #self.models = [] 
 
 
     def compile_from_files(self, file_list_output):
@@ -56,7 +59,12 @@ class ModelingCompiler:
 
             model, _, model_string = sm.StarModeling(tuples_values=self.tuple_results[i]).getCompositeSine2_deep(self.star_names[i])
             model  =  model / np.max(np.abs(model))   #normalize to -1 to 1 model / np.max(model) 
-            self.models.append((date_array, model, model_string))
+
+            # convert to comparision extractor output 
+
+            self.COMP_LIST[i] = CE.comparision_extractor((date_array, model, model_string), self.star_names[i])
+            
+            #self.models.append((date_array, model, model_string))
 
 
 if __name__ == "__main__":
