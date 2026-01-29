@@ -99,6 +99,7 @@ if __name__ == "__main__":
     #create ModelingCompiler instance
     compiler = ModelingCompiler(bias, dark, flat, data_map_paths, star_names)
     compiler.compile_light_curves()
+    print(dir(compiler)) # check attributes
     # Alternatively, compile from existing light curve files
     #file_list_output = ["light_curves/Alderamin_light_curve.csv", "light_curves/IM Tauri_light_curve.csv"]
     #compiler.compile_from_files(file_list_output)
@@ -108,12 +109,23 @@ if __name__ == "__main__":
         print(f"Results for {star_name}:")
         print(f"Dates: {compiler.compiled_dates[i][0:5]} ...")
         print(f"Photometry: {compiler.photom_results[i][0:5]} ...")
-        model, model_string = compiler.models[i][1], compiler.models[i][2]
+        model, model_string = compiler.COMP_LIST[i].model_real, compiler.COMP_LIST[i].model_string_real
         print(f"Model String: {model_string}")
 
         plt.figure()
         plt.plot(compiler.compiled_dates[i], compiler.photom_results[i], label='Observed Light Curve')
         plt.plot(compiler.compiled_dates[i], model, label='Fitted Model', linestyle='--')
+        plt.title(f"Light Curve and Model for {star_name}")
+        plt.xlabel("Time")
+        plt.ylabel("Flux")
+        plt.legend()
+
+        plt.figure() #Anchored Data Model
+        model_ref, model_string_ref = compiler.COMP_LIST[i].model_anchored_real_time, compiler.COMP_LIST[i].model_ref_model_string
+        #plt.plot(compiler.compiled_dates[i], compiler.photom_results[i], label='Observed Light Curve')
+        plt.plot(compiler.compiled_dates[i], model, label='Real Fitted Model', linestyle='--')
+
+        plt.plot(compiler.compiled_dates[i], model_ref, label=' Reference Fitted Model', linestyle='--')
         plt.title(f"Light Curve and Model for {star_name}")
         plt.xlabel("Time")
         plt.ylabel("Flux")
