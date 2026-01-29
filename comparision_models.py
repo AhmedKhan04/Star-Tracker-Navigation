@@ -9,6 +9,7 @@ import numpy as np
 class comparision_extractor:
     def __init__(self, data, NameStar):
         self.date_array_real, self.model_real, self.model_string_real = data 
+        self.date_array_real = np.linspace(0,500, 5000)  # temp fix for testing
         self.star_name = NameStar
         self.anchoring_instance = AD.anchoringData(NameStar)
 

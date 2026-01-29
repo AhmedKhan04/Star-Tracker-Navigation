@@ -1,7 +1,13 @@
+import re
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize_scalar
 from itertools import product
+
+from astropy.coordinates import SkyCoord
+from astropy import units as u
+
+
 
 # Physical constants
 C_L = 299792458.0  # m/s
@@ -10,47 +16,148 @@ sec_d = 86400.0
 Light_AU_D = C_L * sec_d / AU_TO_M # Speed of Light in AU/day
 
 
-class DeltaScutiStar:
-    # Class to simulate a delta scuti
-    def __init__(self,  frequency, amplitude, phase, offset, unit_vector):
+
+#----------#
+# Stars
+
+
+class StarBase: 
+    def __init__(self, unit_vector, time_array_real=None):
+        self.uhat = unit_vector / np.linalg.norm(unit_vector)
+        self.time_array_real = time_array_real
+
+class DeltaScutiStar(StarBase):
+    # Class to simulate a delta scuti (synthetic) star
+    def __init__(self,  frequency, amplitude, phase, offset, unit_vector, time_array_real):
+        super().__init__(unit_vector, time_array_real)
         self.freq = frequency
         self.amp = amplitude
         self.phase = phase
         self.offset = offset
-        self.uhat = unit_vector / np.linalg.norm(unit_vector)
+        
     
     def model(self, t, t0=0.0):
-        return self.amp * np.sin( 2 * np.pi * self.freq * (t - t0) + self.phase ) + self.offset
+        result =  self.amp * np.sin( 2 * np.pi * self.freq * (t - t0) + self.phase ) + self.offset
+        result -= np.mean(result)  # remove DC component
+        result /= np.max(np.abs(result))  # normalize to -1 to 1
+        return result
 
+class RealStar(StarBase): 
+
+    def __init__(self,  unit_vector, comparision_object, time_array_real, star_name="Unknown"):
+        super().__init__(unit_vector, time_array_real)
+        self.star_name = star_name
+        self.comparision_object = comparision_object
+        self.model_string_real = self.comparision_object.model_string_real
+        self.model_anchored_real_time = self.model_ref_model / np.max(np.abs(self.model_ref_model))
+        self.model_real = self.model_real / np.max(np.abs(self.model_real))
+
+    def model(self, t, t0=0.0):
+        try:
+            t_eval = t - t0
+
+            self.model_string_real = re.sub(r'π', ' * np.pi', self.model_string_real)
+            self.model_string_real = re.sub(r'f\(t\) = ', '', self.model_string_real)
+            self.model_string_real = re.sub(r'\bsin\b', 'np.sin', self.model_string_real)
+            self.model_string_real = re.sub(r'\s+', ' ', self.model_string_real)
+
+            result = eval(self.model_string_real, {"np": np, "t": t_eval})
+            result = result - np.mean(result)  # remove DC component
+            result = result / np.max(np.abs(result))  # normalize to -1 to 1
+            
+            return result
+        
+        except Exception as e:
+            raise ValueError(f"Failed to evaluate model for {self.star_name}: {e}")
+
+
+
+
+#----------# 
+# Spacecraft
+
+
+class Observation:
+    def __init__(self, time_array, flux_array, star_name="Unknown", true_delta_t=None):
+
+        self.time = np.array(time_array)
+        self.flux = np.array(flux_array)
+        self.star_name = star_name
+        self.true_delta_t = true_delta_t  # None for real data
 
 class Spacecraft:
-    # Spacecraft observation 
-    def __init__(self, position, c_off, stars):
-        self.r = np.array(position) # source of truth
-        self.t_offset = c_off / sec_d  # Built in error of hardware
-        self.stars = stars # the stars we would have
-    
-    def observe_star(self, star, t_grid, noise_sigma=0.0, scale_factor=1.0):
 
-        geom_delay = np.dot(star.uhat, self.r) / Light_AU_D  # added phase shift from the position (days) 
-  
-        dt_true = self.t_offset + geom_delay # appending the phase shift + our clock offset
-     
-        T = t_grid + dt_true # added the delay to the time grid to get the true time
+    def __init__(self, position, clock_offset_seconds, stars):
+
+        self.r = np.array(position)
+        self.t_offset = clock_offset_seconds / sec_d
+        self.stars = stars
+    
+    def observe_star(self, star, t_grid, noise_sigma=0.0, scale_factor=1.0): # used for synthetic stars
+
+        geom_delay = np.dot(star.uhat, self.r) / Light_AU_D
+        dt_true = self.t_offset + geom_delay
+        T = t_grid + dt_true
         
-        # Generate measurements using the star's model
-        flux_shifted = star.model(T) # computing the same flux at the shifted time 
-        flux_measured = scale_factor * flux_shifted   # applying the scale factor to make everything match 
+        flux_shifted = star.model(T)
+        flux_measured = scale_factor * flux_shifted
         
-        # Add noise
         if noise_sigma > 0:
             flux_measured += np.random.normal(0, noise_sigma, len(flux_measured))
         
-        return {
-            'time': t_grid.copy(),
-            'flux': flux_measured,
-            'true_delta_t': dt_true
-        }
+        return Observation(
+            time_array=t_grid.copy(),
+            flux_array=flux_measured,
+            star_name=star.star_name,
+            true_delta_t=dt_true  # Store for validation
+        )
+    
+    def observe_all_stars(self, t_grid, noise_sigma=0.0):
+        observations = []
+        for star in self.stars:
+            obs = self.observe_star(
+                star, t_grid,
+                noise_sigma=noise_sigma,
+                scale_factor=np.random.uniform(0.98, 1.02)
+            )
+            observations.append(obs)
+        return observations
+
+
+
+
+# class Spacecraft:
+#     # Spacecraft observation 
+#     def __init__(self, position, c_off, stars):
+#         self.r = np.array(position) # source of truth
+#         self.t_offset = c_off / sec_d  # Built in error of hardware
+#         self.stars = stars # the stars we would have
+    
+#     def observe_star(self, star, t_grid, noise_sigma=0.0, scale_factor=1.0):
+
+#         geom_delay = np.dot(star.uhat, self.r) / Light_AU_D  # added phase shift from the position (days) 
+  
+#         dt_true = self.t_offset + geom_delay # appending the phase shift + our clock offset
+     
+#         T = t_grid + dt_true # added the delay to the time grid to get the true time
+        
+#         # Generate measurements using the star's model
+#         flux_shifted = star.model(T) # computing the same flux at the shifted time 
+#         flux_measured = scale_factor * flux_shifted   # applying the scale factor to make everything match 
+        
+#         # Add noise
+#         if noise_sigma > 0:
+#             flux_measured += np.random.normal(0, noise_sigma, len(flux_measured))
+        
+#         return {
+#             'time': t_grid.copy(),
+#             'flux': flux_measured,
+#             'true_delta_t': dt_true
+#         }
+
+
+# -----------#
+# Navigation 
 
 
 class NAV:
@@ -60,8 +167,8 @@ class NAV:
         self.num_stars = len(stars)
     
     def dt_estim(self, star, observations, search_range=0.01, n_grid=1001):
-        t_prime = observations['time'] # spacecraft clock times
-        measured_flux = observations['flux']    # measured fluxes
+        t_prime = observations.time  # spacecraft clock times
+        measured_flux = observations.flux  # measured fluxes
 
         dt_grid = np.linspace(-search_range, search_range, n_grid)
         J_values = np.zeros(n_grid)
@@ -165,11 +272,22 @@ class NAV:
         print(f"Evaluated {count} combinations")
         return best_solution
 
+
+def get_unit_vector(Starname): 
+   
+    cord = SkyCoord.from_name(Starname).cartesian.xyz
+    cord = cord / np.linalg.norm(cord)
+            
+    # Unit vector
+    unit_vector = (f"Unit vector computed: {cord[0]}, {cord[1]}, {cord[2]}")
+    print(unit_vector)
+
+
 def main():
     
     
     np.random.seed(42)
-    num_stars = 4000
+    num_stars = 8
     stars = []
     
     for i in range(num_stars):
@@ -185,7 +303,7 @@ def main():
         stars.append(DeltaScutiStar(freq, amp, phase, baseline, uvec))
     
     #initial vals
-    r_true = np.array([0,0,0])  # AU
+    r_true = np.array([0,0,0])  # AU relative to SSB
     t_offset_true = 10.0  # seconds
     
     print("TRUE STATE")
@@ -199,7 +317,7 @@ def main():
 
     simulator = Spacecraft(r_true, t_offset_true, stars)
     
-    obs_duration = 5 
+    obs_duration = 0.5 
     n_samples = 500
     t_grid = np.linspace(0, obs_duration, n_samples)
     
