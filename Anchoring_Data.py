@@ -29,6 +29,7 @@ class anchoringData:
             print("Assigning unit to time array")
             self.t_Earth = self.t_Earth * u.day  # assign unit if none
         
+        self.t_Earth, self.flux_Earth = self.time_array, self.flux_array  # overrite time to be able to not anchor model for now...
         modeling_instance = sm.StarModeling(tuples_values=list(zip(self.t_Earth.value, self.flux_Earth.value)))
         self.model_ref_model, _, self.model_ref_model_string = modeling_instance.getCompositeSine2_deep(self.NameStar)
 

@@ -129,6 +129,7 @@ class NAV:
                 'residual': residual,
                 'success': True
             }
+        
         except np.linalg.LinAlgError:
             return {'success': False}
     
