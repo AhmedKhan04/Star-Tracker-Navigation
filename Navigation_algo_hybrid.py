@@ -3,10 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize_scalar
 from itertools import product
-
+from astropy.coordinates import ICRS
 from astropy.coordinates import SkyCoord
 from astropy import units as u
-
 from astroquery.jplhorizons import Horizons
 from astropy.time import Time
 from astropy.coordinates import get_body_barycentric, EarthLocation
@@ -56,8 +55,8 @@ class RealStar(StarBase):
         self.star_name = star_name
         self.comparision_object = comparision_object
         self.model_string_real = self.comparision_object.model_string_real
-        self.model_anchored_real_time = self.model_ref_model / np.max(np.abs(self.model_ref_model))
-        self.model_real = self.model_real / np.max(np.abs(self.model_real))
+        self.model_anchored_real_time = self.comparision_object.model_anchored_real_time / np.max(np.abs(self.comparision_object.model_anchored_real_time))
+        self.model_real = self.comparision_object.model_real / np.max(np.abs(self.comparision_object.model_real))
 
         self.model_ref_model_string = self.comparision_object.model_ref_model_string
 
@@ -67,23 +66,24 @@ class RealStar(StarBase):
         try:
             t_eval = t - t0
 
-            self.model_string_real = re.sub(r'π', ' * np.pi', self.model_string_real)
-            self.model_string_real = re.sub(r'f\(t\) = ', '', self.model_string_real)
-            self.model_string_real = re.sub(r'\bsin\b', 'np.sin', self.model_string_real)
-            self.model_string_real = re.sub(r'\s+', ' ', self.model_string_real)
+            #self.model_string_real = re.sub(r'π', ' * np.pi', self.model_string_real)
+            #self.model_string_real = re.sub(r'f\(t\) = ', '', self.model_string_real)
+            #self.model_string_real = re.sub(r'\bsin\b', 'np.sin', self.model_string_real)
+            #self.model_string_real = re.sub(r'\s+', ' ', self.model_string_real)
 
             result = eval(self.model_string_real, {"np": np, "t": t_eval})
             result = result - np.mean(result)  # remove DC component
-            result = result / np.max(np.abs(result))  # normalize to -1 to 1
+            #result = result / np.max(np.abs(result))  # normalize to -1 to 1
+            result = result / np.std(result)  # normalize to -1 to 1
+            #self.model_string_ref = re.sub(r'π', ' * np.pi', self.model_string_real)
+            #self.model_string_ref = re.sub(r'f\(t\) = ', '', self.model_string_ref)
+            #self.model_string_ref = re.sub(r'\bsin\b', 'np.sin', self.model_string_ref)
+            #self.model_string_ref = re.sub(r'\s+', ' ', self.model_string_ref)
 
-            self.model_string_ref = re.sub(r'π', ' * np.pi', self.model_string_real)
-            self.model_string_ref = re.sub(r'f\(t\) = ', '', self.model_string_ref)
-            self.model_string_ref = re.sub(r'\bsin\b', 'np.sin', self.model_string_ref)
-            self.model_string_ref = re.sub(r'\s+', ' ', self.model_string_ref)
-
-            result_ref = eval(self.model_string_ref, {"np": np, "t": t_eval})
+            result_ref = eval(self.model_ref_model_string, {"np": np, "t": t_eval})
             result_ref = result_ref - np.mean(result_ref)  # remove DC component
-            result_ref = result_ref / np.max(np.abs(result_ref))  # normalize to -1 to 1
+            #result_ref = result_ref / np.max(np.abs(result_ref))  # normalize to -1 to 1
+            result_ref = result_ref / np.std(result_ref)  # normalize to -1 to 1
             # result_ref is anchrored model to SSB
             # result is real observed model
             return (result, result_ref)
@@ -142,10 +142,10 @@ class Spacecraft:
         #r_relative = self.r + self.r_earth # in AU
         #geom_delay = np.dot(star.uhat, r_relative) / Light_AU_D
         dt_true = self.t_offset #+ geom_delay
-        T = t_grid + dt_true
+        T = t_grid # + dt_true
         
         flux = star.model(T)[0] #from telescope
-        flux_measured = scale_factor * flux
+        flux_measured = flux
         
         #if noise_sigma > 0:
         #   flux_measured += np.random.normal(0, noise_sigma, len(flux_measured))
@@ -323,12 +323,185 @@ class NAV:
 
 def get_unit_vector(Starname): 
    
-    cord = SkyCoord.from_name(Starname).cartesian.xyz
+    cord = SkyCoord.from_name(Starname).transform_to(ICRS()).cartesian.xyz
     cord = cord / np.linalg.norm(cord)
-            
+
     # Unit vector
     unit_vector = (f"Unit vector computed: {cord[0]}, {cord[1]}, {cord[2]}")
     print(unit_vector)
+    return cord
+
+def random_sphere_points():
+
+    cos_theta = np.random.uniform(-1, 1)  # cos(polar angle)
+    theta = np.arccos(cos_theta)           # polar angle [0, pi]
+    phi = np.random.uniform(0, 2*np.pi)    # azimuthal angle [0, 2pi]
+    
+    # Convert to Cartesian
+    x = np.sin(theta) * np.cos(phi)
+    y = np.sin(theta) * np.sin(phi)
+    z = np.cos(theta)
+    
+    uvec = np.array([x, y, z])
+    uvec = uvec / np.linalg.norm(uvec)  # Normalize (should already be 1)
+    
+    return uvec
+    
+def run_single_simulation(r_true, t_offset_true, stars, obs_duration, n_samples, 
+                         noise_sigma, seed=None):
+    """
+    Run a single simulation instance
+    """
+    if seed is not None:
+        np.random.seed(seed)
+    
+    # Create spacecraft
+    simulator = Spacecraft(r_true, t_offset_true, stars)
+    
+    # Generate time grid
+    t_grid = np.linspace(0, obs_duration, n_samples)
+    
+    # Observe all stars
+    observations = []
+    for star in stars:
+        if star.star_name == "Delta Scuti Star (Synthetic)":
+            obs = simulator.observe_star_synthetic(
+                star, t_grid,
+                noise_sigma=1e-3,
+                scale_factor=np.random.uniform(0.98, 1.02)
+            )
+        else:
+            obs = simulator.observe_star_real(
+                star, t_grid,
+                noise_sigma=1e-3,
+                scale_factor=np.random.uniform(0.98, 1.02)
+            )
+        observations.append(obs)
+    
+    # Navigate
+    solver = NAV(stars)
+    solution = solver.navigate(observations, max_candidates=3)
+    
+    return solution, observations
+
+
+def monte_carlo_simulation(n_runs=50, verbose=True, stars = None, r_true = None, t_offset_true = None):
+
+    print("="*70)
+    print("MONTE CARLO SIMULATION")
+    print("="*70)
+
+    num_stars = 2
+    
+    # r_true = np.array([np.random.rand(), np.random.rand(), np.random.rand()]) * 1.5  # AU
+    # t_offset_true = 1  # seconds
+
+    obs_duration = 5  # days
+    n_samples = 500
+    noise_sigma = 1e-3 #from paper 
+    
+    # Storage for results
+    position_errors = []
+    time_errors = []
+    residuals = []
+    success_count = 0
+
+    np.random.seed(42)
+    #stars = []
+    # for i in range(num_stars):
+    #     freq = np.random.uniform(5, 15)  # cycles per day
+    #     amp = 0.01  # 1% variation
+    #     phase = np.random.uniform(0, 2*np.pi)
+    #     baseline = 1.0
+    #     uvec = np.random.randn(3)
+    #     uvec = uvec / np.linalg.norm(uvec)
+    #     stars.append(DeltaScutiStar(freq, amp, phase, baseline, uvec))
+    
+    print(f"\nTRUE STATE")
+    print(f"  Position: {r_true} AU")
+    print(f"  Clock offset: {t_offset_true} s")
+    print(f"\nOBSERVATION PARAMETERS")
+    print(f"  Number of stars: {num_stars}")
+    print(f"  Observation duration: {obs_duration} days")
+    print(f"  Number of samples: {n_samples}")
+    print(f"  Noise sigma: {noise_sigma}")
+    print(f"\nRunning {n_runs} Monte Carlo samples...")
+    print("-"*70)
+    
+    # Run Monte Carlo
+    for run in range(n_runs):
+        # Run simulation with different noise seed
+        solution, observations = run_single_simulation(
+            r_true, t_offset_true, stars, 
+            obs_duration, n_samples, noise_sigma,
+            seed=None  # Random seed each time
+        )
+        
+        if solution and solution['success']:
+            pos_error = np.linalg.norm(solution['position'] - r_true)
+            time_error = abs(solution['clock_offset'] - t_offset_true)
+            
+            position_errors.append(pos_error)
+            time_errors.append(time_error)
+            residuals.append(solution['residual'])
+            success_count += 1
+            
+            if verbose and (run + 1) % 10 == 0:
+                print(f"Run {run+1}/{n_runs}: "
+                      f"Pos Error = {pos_error:.6f} AU, "
+                      f"Time Error = {time_error:.3f} s")
+        else:
+            if verbose:
+                print(f"Run {run+1}/{n_runs}: FAILED")
+    
+    # Convert to arrays
+    position_errors = np.array(position_errors)
+    time_errors = np.array(time_errors)
+    residuals = np.array(residuals)
+    
+    # Compute statistics
+    print("\n" + "="*70)
+    print("MONTE CARLO RESULTS")
+    print("="*70)
+    print(f"\nSuccess rate: {success_count}/{n_runs} ({100*success_count/n_runs:.1f}%)")
+    
+    if success_count > 0:
+        print(f"\nPOSITION ERROR (AU):")
+        print(f"  Mean:   {np.mean(position_errors):.6f}")
+        print(f"  Median: {np.median(position_errors):.6f}")
+        print(f"  Std:    {np.std(position_errors):.6f}")
+        print(f"  Min:    {np.min(position_errors):.6f}")
+        print(f"  Max:    {np.max(position_errors):.6f}")
+        print(f"  1σ:     {np.std(position_errors):.6f}")
+        print(f"  3σ:     {3*np.std(position_errors):.6f}")
+        
+        print(f"\nTIME ERROR (seconds):")
+        print(f"  Mean:   {np.mean(time_errors):.3f}")
+        print(f"  Median: {np.median(time_errors):.3f}")
+        print(f"  Std:    {np.std(time_errors):.3f}")
+        print(f"  Min:    {np.min(time_errors):.3f}")
+        print(f"  Max:    {np.max(time_errors):.3f}")
+        print(f"  1σ:     {np.std(time_errors):.3f}")
+        print(f"  3σ:     {3*np.std(time_errors):.3f}")
+        
+        print(f"\nCOMPARISON TO PAPER (Table 4.2, MapCam nominal case):")
+        print(f"  Paper - Position: mean=3.08e-02 AU, std=2.57e-02 AU")
+        print(f"  Yours - Position: mean={np.mean(position_errors):.2e} AU, std={np.std(position_errors):.2e} AU")
+        print(f"  Paper - Time:     mean=5.40 s, std=2.67 s")
+        print(f"  Yours - Time:     mean={np.mean(time_errors):.2f} s, std={np.std(time_errors):.2f} s")
+    
+    return {
+        'position_errors': position_errors,
+        'time_errors': time_errors,
+        'residuals': residuals,
+        'success_rate': success_count / n_runs,
+        'r_true': r_true,
+        't_offset_true': t_offset_true
+    }
+
+
+
+
 
 
 def main():
@@ -342,7 +515,8 @@ def main():
     dark_path = 'calibration_frames/NGC0891 darks_00015.fits'
     flat_path = "calibration_frames/Flat_300.0ms_Bin1_ISO100_20251205-064251_32.0F_0001.fit"
     data_map_paths = [
-        "data_maps/real_data_map_Alderamin (Alpha Cephi) 2025-11-15.csv",
+        "data_maps/real_data_map_Delta Scuti 2025-11-15.csv",
+        #"data_maps/real_data_map_Alderamin (Alpha Cephi) 2025-11-15.csv",
         #"data_maps/real_data_map_IM Tauri 2025-11-15.csv"
         #"data_maps/real_data_map_97 Psc.csv"
     ]
@@ -350,7 +524,8 @@ def main():
     # star names
 
     star_names = [
-        "Alderamin",
+        "Delta Scuti",
+        #"Alderamin",
         #"IM Tauri"
         #"97 Psc"
     ]
@@ -361,17 +536,25 @@ def main():
     flat = fits.getdata(flat_path).astype(float)
     
     #create ModelingCompiler instance
-    compiler = MC(bias, dark, flat, data_map_paths, star_names)
+    compiler = MC.ModelingCompiler(bias, dark, flat, data_map_paths, star_names)
     compiler.compile_light_curves()
+    uni = get_unit_vector(star_names[0])
+    #uni2 = get_unit_vector(star_names[1])
+   
 
-    
-    
+    alderamin = RealStar( uni, compiler.COMP_LIST[0], compiler.compiled_dates[0], star_name=star_names[0])
+    #Delta_scuti = RealStar( uni2, compiler.COMP_LIST[1], compiler.compiled_dates[1], star_name=star_names[1])
+ 
+
     
     np.random.seed(42)
-    num_stars = 4
+    num_stars = 4 # number of synthetic stars to add
     stars = []
 
-    t_obs  = Time('2025-11-03T00:41:16', scale='tdb')  # observation time for Earth position
+    stars.append(alderamin)
+    #stars.append(Delta_scuti)
+
+    t_obs  = Time('2025-11-16T02:43:07.685', scale='tdb')  # observation time for Earth position
     loc = EarthLocation(lat=40*u.deg, lon=-88*u.deg, height=200*u.m) # observatory location chanmpaign
     
     #loc = EarthLocation(lat=40*u.deg, lon=-88*u.deg, height=200*u.m)
@@ -387,10 +570,10 @@ def main():
         uvec = uvec / np.linalg.norm(uvec)
         
         stars.append(DeltaScutiStar(freq, amp, phase, baseline, uvec))
-    
+        
     #initial vals
     r_earth_ssb = get_body_barycentric('earth', t_obs).xyz.to(u.AU).value 
-    r_true = loc.get_gcrs(t_obs).cartesian.xyz.to(u.AU).value  + r_earth_ssb#np.array([0,0,1])  # AU relative to SSB
+    r_true = loc.get_gcrs(t_obs).transform_to(ICRS()).cartesian.xyz.to(u.AU).value # + r_earth_ssb#np.array([0,0,1])  # AU relative to SSB
     
     t_offset_true = 5 # seconds
     
@@ -405,17 +588,24 @@ def main():
 
     simulator = Spacecraft(r_true, t_offset_true, stars, t_obs = t_obs)
     
-    obs_duration = 10
-    n_samples = 5000
+    obs_duration = 0.5  # days
+    n_samples = 500
     t_grid = np.linspace(0, obs_duration, n_samples)
     
     observations = []
     for star in stars:
-        obs = simulator.observe_star_synthetic(
-            star, t_grid,
-            noise_sigma=0.0008,
-            scale_factor=np.random.uniform(0.98, 1.02)
-        )
+        if star.star_name == "Delta Scuti Star (Synthetic)":
+            obs = simulator.observe_star_synthetic(
+                star, t_grid,
+                noise_sigma=1e-3,
+                scale_factor=np.random.uniform(0.98, 1.02)
+            )
+        else:
+            obs = simulator.observe_star_real(
+                star, t_grid,
+                noise_sigma=1e-3,
+                scale_factor=np.random.uniform(0.98, 1.02)
+            )
         
         observations.append(obs)
         print(f"Star: true Δt = {obs.true_delta_t*sec_d:.3f} s")
@@ -438,6 +628,7 @@ def main():
     else:
         print("FALIURE")
     
+    #monte_carlo_results = monte_carlo_simulation(n_runs=50, verbose=True, stars=stars, r_true=r_true, t_offset_true=t_offset_true)
 
     """
     plt.figure(figsize=(10, 4))

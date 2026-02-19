@@ -2,7 +2,7 @@ import os
 import pandas as pd 
 
 folder_path = "real_data/"
-star_names = os.listdir(folder_path)
+star_names = ["Delta Scuti 2025-11-15"]
 
 for star in star_names:
     final_map = []
@@ -11,7 +11,7 @@ for star in star_names:
     star_data_files = os.listdir(star_data_path)
     for file in star_data_files:
         data_point_path = f"{star_data_path}/{file}"
-        #print(data_point_path)
+        print(data_point_path)
         for file in os.listdir(data_point_path): # only want fits files to be pulled
             #print(file)
             if file.endswith(".fits"):

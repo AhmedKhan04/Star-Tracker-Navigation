@@ -75,12 +75,12 @@ class LightCurveExtractor:
         maxVal = np.amax(img)
         #print('--------------')
         #print(maxVal)
-        print(img.shape)
+        #print(img.shape)
         min = np.min(img)
         mask = np.ones_like(img) 
-        print(mask.shape)
+        #print(mask.shape)
         mid_point_array = np.array([(mask.shape[0]//2, mask.shape[1]//2)])
-        print(mid_point_array)
+        #print(mid_point_array)
         
         return mid_point_array
         
@@ -178,18 +178,25 @@ class LightCurveExtractor:
             #utc_float =  dt.hour + dt.minute / 60 + dt.second / 3600 + dt.microsecond / (3600 * 1e6)
             #rint(f"UTC time (fractional hours): {utc_float}")  
 
-            
+               
+
+
             #print(date_obs_clean)
             #print('--------------')
             t_utc = Time(date_obs_clean, format='isot', scale='utc')
-            print(t_utc)
+            t_tbd = t_utc.tdb
+            btjd = t_tbd.jd - 2457000.0
+           
+
+            #print(t_utc)
+            #t_tbd = t_utc.tdb
             # Define Kepler mission epoch (BJD 2454833.0)
-            kepler_epoch = Time(2454833.0, format='jd', scale='utc')
+            #kepler_epoch = Time(2454833.0, format='jd', scale='utc')
 
             # Compute days since epoch
-            days_since = (t_utc - kepler_epoch).to('day').value
-            print(f"Days since Kepler epoch: {days_since:.6f} days")
-            self.date_array.append(days_since)
+            #days_since = (t_utc - Time(2457000, format='tdb')).to('day').value # btjd 
+            #print(f"Days since Kepler epoch: {days_since:.6f} days")
+            self.date_array.append(btjd)
 
 
     
@@ -281,11 +288,11 @@ class LightCurveExtractor:
                 print("WCS conversion failed:", e)
                 print("Using last known coordinates or image center.")
 
-            print("Target appears at pixel coordinates:")
-            print("x =", px)
-            print("y =", py)
+            #print("Target appears at pixel coordinates:")
+            #print("x =", px)
+            #print("y =", py)
             
-            print(f"initial centering point: {cords}")
+            #print(f"initial centering point: {cords}")
             #cords = get_max(calibrated_second) # coordinates from image A
             #cords = np.array([(2401.93, 2086.15)])  # coordinates from image A
             #transform, (src_list, ref_list) = aa.find_transform(calibrated_second, calibrated)
@@ -310,7 +317,7 @@ class LightCurveExtractor:
             t_p = cords_transformed
             x, y = t_p[0]
             x, y = int(x), int(y)
-            print(f"cords: {x, y}")
+            #print(f"cords: {x, y}")
             half_box = 50
             #print(x)
             #print(y)
@@ -319,9 +326,9 @@ class LightCurveExtractor:
 
             mask = np.zeros_like(calibrated_second)
             mask[y1:y2, x1:x2] = 1
-            print("------")
-            print(y1, y2, x1, x2)
-            print("------")
+            #print("------")
+            #print(y1, y2, x1, x2)
+            #print("------")
             #masked_data = calibrated_second *  mask
 
             #plt.imshow(masked_data, cmap='gray', origin='lower',
@@ -332,7 +339,7 @@ class LightCurveExtractor:
             #cords_transformed = get_max(masked_data) # DAOStarFinder(fwhm=FWHM, threshold=10*std)(masked_data - median_s)
             
             if(cords_transformed is None):
-                print("No stars found, using previous coordinates") 
+                #print("No stars found, using previous coordinates") 
                 cords_transformed = past_cord
             else:
                 background = np.min(calibrated_second)
@@ -376,9 +383,14 @@ class LightCurveExtractor:
                     optimal_radius = radii[optimal_index -1 ] # +1 because of the double diff 
                 except IndexError as e:
                     print(e)
-                    optimal_index = optimal_index # use last used index
-                    optimal_radius = radii[optimal_index]
-                print("Optimal aperture radius:", optimal_radius)
+                    try:
+                        optimal_index = optimal_index # use last used index
+                        optimal_radius = radii[optimal_index]
+                    except Exception as e:
+                        print(e)
+                        optimal_index = len(growth_rate)//2
+                        optimal_radius = radii[optimal_index] # default value if all else fails
+                #print("Optimal aperture radius:", optimal_radius)
         
                 #threshold = 0.1* np.max(growth_rate)  # e.g., 1% of max growth
                 #optimal_index = np.where(growth_rate < threshold)[0][0]
@@ -612,7 +624,7 @@ class LightCurveExtractor:
             bkg_sum = bkg_mean * area
             final_sum = photom_table['aperture_sum_0'] - bkg_sum
             
-            print(final_sum)
+            #print(final_sum)
 
             self.saving_constant += 1
             self.photom_list.append(final_sum.value[0])
@@ -638,6 +650,9 @@ class LightCurveExtractor:
         
         if normalize:
             self.photom_list = self.normalize_lightcurve()
+        
+        if plotting:
+            self.plot_lightcurve()
 
         return self.photom_list, self.date_array
     
@@ -655,7 +670,7 @@ class LightCurveExtractor:
         if output_path is not None:
             output_path = fr"Outputs/{self.star_name}.csv"
             df.to_csv(output_path)
-            print(f"Light curve saved to {output_path}") 
+            #print(f"Light curve saved to {output_path}") 
         else: 
             print("No output path provided")
             return 

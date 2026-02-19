@@ -5,6 +5,7 @@ from astropy.coordinates import SkyCoord, get_body_barycentric
 import matplotlib.pyplot as plt
 import lightkurve as lk
 import time 
+import unpopular
 import pandas as pd
 
 import modeling as sm
@@ -18,20 +19,25 @@ class anchoringData:
         self.NameStar = NameStar
         self.c  = 299792458  # (m/s) speed of light
         self.time_array, self.flux_array = self.pull_lightcurve_data(NameStar)
-        self.r_earth = get_body_barycentric(body = "earth", time=  self.time_array).xyz.to(u.m)  # shape: (3, N)
+        #print(self.time_array.unit)
+        #self.r_earth = get_body_barycentric(body = "earth", time=  self.time_array).xyz.to(u.m)  # shape: (3, N)
         #print(self.r_earth.unit)
         self.star_coords = SkyCoord.from_name(NameStar)
         self.time_delay = None #computer in get_anchored_lightcurve
-        self.t_Earth, self.flux_Earth = self.get_anchored_lightcurve()
-        if (self.flux_Earth.unit is None):
-            self.flux_Earth = self.flux_Earth * u.luminosity  # assign unit if none
-        if (self.t_Earth.unit is not u.day):
-            print("Assigning unit to time array")
-            self.t_Earth = self.t_Earth * u.day  # assign unit if none
+        #self.t_Earth, self.flux_Earth = self.get_anchored_lightcurve()
+        # if (self.flux_Earth.unit is None):
+        #     self.flux_Earth = self.flux_Earth * u.luminosity  # assign unit if none
+        # if (self.t_Earth.unit is not u.day):
+        #     print("Assigning unit to time array")
+        #     self.t_Earth = self.t_Earth * u.day  # assign unit if none
         
         self.t_Earth, self.flux_Earth = self.time_array, self.flux_array  # overrite time to be able to not anchor model for now...
-        modeling_instance = sm.StarModeling(tuples_values=list(zip(self.t_Earth.value, self.flux_Earth.value)))
+        modeling_instance = sm.StarModeling(tuples_values=list(zip(self.t_Earth, self.flux_Earth)))
         self.model_ref_model, _, self.model_ref_model_string = modeling_instance.getCompositeSine2_deep(self.NameStar)
+        plt.figure() 
+        plt.plot(self.time_array, self.flux_array, label="Earth Frame Light Curve")
+        #plt.plot(self.time_array, self.model_ref_model, label="Model Reference Model")
+        plt.show() 
 
 
 
@@ -40,9 +46,39 @@ class anchoringData:
     @staticmethod
     def pull_lightcurve_data(nameStar):
         #relative to solar-system barycenter
+        index = 0 
         x = lk.search_targetpixelfile(nameStar)
-        x= x[0].download().to_lightcurve()
-        return x.time, x.flux
+        if nameStar == "Delta Scuti":
+            index = 1
+            x = lk.search_lightcurve(nameStar)[-1].download()
+        else: 
+
+            x= x[index].download().to_lightcurve()
+        # lets do some detrending here to get a cleaner light curve for the anchoring.
+        # time, flux = [], []
+        # result = lk.search_tesscut(nameStar)[-2:] 
+        # search_result = result.table['sequence_number']
+        # search_result = search_result # limit to first 3 sectors for testing
+            
+        # print(search_result)
+        # tpf_collection = result.download_all(cutout_size=50)
+        
+        # for l in tpf_collection:
+        #     s = unpopular.Source(l.path, remove_bad=True)
+        #     s.set_aperture(rowlims=[24, 26], collims=[24, 26])  # adjust these limits based on the star's position in the TPF
+        #     s.add_cpm_model(exclusion_size=5, n=64, predictor_method="similar_brightness")
+        #     s.set_regs([(1e-5)/2])
+        #     s.holdout_fit_predict(k=100);
+
+        #     #aperture_normalized_flux = s.get_aperture_lc(data_type="normalized_flux")
+        #     #aperture_cpm_prediction = s.get_aperture_lc(data_type="cpm_prediction", weighting=None)
+
+        #     apt_detrended_flux = s.get_aperture_lc(data_type="cpm_subtracted_flux")
+        #     flux.extend(apt_detrended_flux)
+        #     time.extend(s.time)
+
+        #print(x)
+        return x.time.value, x.flux.value
 
     def compute_light_travel_delay(self, times=None):
         star_direction = self.star_coords.cartesian.xyz

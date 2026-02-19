@@ -11,7 +11,8 @@ import Anchoring_Data as AD
 import comparision_models as CE 
 
 #compile all 
-
+# adding ploting flag to control whether to plot the light curves and models after compilation. This allows for flexibility in usage, especially when running in environments where plotting may not be desired or possible.
+plot_models = True
 class ModelingCompiler:
 
     def __init__(self, bias, dark, flat_norm, date_maps = None, star_names = None):
@@ -24,7 +25,7 @@ class ModelingCompiler:
         #self.file_list = file_list
         self.bias = bias
         self.dark = dark
-        self.flat = flat
+        self.flat = flat_norm
 
         # storage for results
         self.photom_results = [] 
@@ -58,12 +59,24 @@ class ModelingCompiler:
             #extractor.save_lightcurve(star_name, photom_list, date_array)
 
             model, _, model_string = sm.StarModeling(tuples_values=self.tuple_results[i]).getCompositeSine2_deep(self.star_names[i])
-            model  =  model / np.max(np.abs(model))   #normalize to -1 to 1 model / np.max(model) 
+           
+            
+            if plot_models:
+                plt.figure()
+                plt.plot(date_array, photom_list, label='Observed Light Curve')
+                plt.plot(date_array, model, label='Fitted Model', linestyle='--')
+                plt.title(f"Light Curve and Model for {star_name}")
+                plt.xlabel("Time")
+                plt.ylabel("Flux")
+                plt.legend()
+                plt.show()
 
+
+            model  =  model / np.max(np.abs(model))   #normalize to -1 to 1 model / np.max(model) 
+            
             # convert to comparision extractor output 
 
             self.COMP_LIST[i] = CE.comparision_extractor((date_array, model, model_string), self.star_names[i])
-            
             #self.models.append((date_array, model, model_string))
 
 

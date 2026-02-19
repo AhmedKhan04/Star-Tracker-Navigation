@@ -42,9 +42,9 @@ class StarModeling:
         print("Fetching lightcurve and periodogram data...")
 
         x = lk.search_targetpixelfile(nameOfStar)
-        print(x)
+        #print(x)
         x= x[0].download().to_lightcurve()
-        print("Lightcurve and periodogram data fetched.")
+        #print("Lightcurve and periodogram data fetched.")
         #lightcurve = lk.search_lightcurve(nameOfStar).download_all().stitch().remove_outliers(sigma = 5.0)
         x_coords, y_coords = zip(*self.lightcurve_tuple_list)
         x_coords = np.array(x_coords)
@@ -127,14 +127,14 @@ class StarModeling:
         freqs = pg.frequency[filtered_peaks]#.value
         powers = pg.power[filtered_peaks]#.value
 
-        pt.figure(figsize=(10, 6))
-        pt.plot(pg.frequency, pg.power, label='Periodogram')
-        pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
-        pt.xlabel('Frequency (cycles/BKJD)')
-        pt.ylabel('Power')
-        pt.title('Periodogram with Local Maxima: '+ nameOfStar)
-        pt.legend()
-        pt.show()
+        # pt.figure(figsize=(10, 6))
+        # pt.plot(pg.frequency, pg.power, label='Periodogram')
+        # pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
+        # pt.xlabel('Frequency (cycles/BKJD)')
+        # pt.ylabel('Power')
+        # pt.title('Periodogram with Local Maxima: '+ nameOfStar)
+        # pt.legend()
+        # pt.show()
 
         
         
