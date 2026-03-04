@@ -15,10 +15,11 @@ import comparision_models as CE
 plot_models = True
 class ModelingCompiler:
 
-    def __init__(self, bias, dark, flat_norm, date_maps = None, star_names = None):
+    def __init__(self, bias, dark, flat_norm, date_maps = None, star_names = None, Centroid_override = None):
         
         self.data_maps = date_maps 
         self.star_names = star_names
+        self.Centroid_override = Centroid_override
 
         # global settings 
 
@@ -51,7 +52,7 @@ class ModelingCompiler:
 
     def compile_light_curves(self):
         for i, star_name in enumerate(self.star_names):
-            extractor = lce.LightCurveExtractor(self.bias, self.dark, self.flat, self.data_maps[i], star_name)
+            extractor = lce.LightCurveExtractor(self.bias[i], self.dark[i], self.flat[i], self.data_maps[i], star_name, self.Centroid_override[i])
             photom_list, date_array = extractor.extract_light_curve(normalize = True)
             self.photom_results.append(photom_list)
             self.compiled_dates.append(date_array)

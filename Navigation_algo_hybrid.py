@@ -509,34 +509,54 @@ def main():
         # Define our inputs
 
     #paths
+    bias = [] 
+    dark = []
+    flat = [] 
 
-    bias_path = "calibration_frames/Bias_1.0ms_Bin1_ISO100_20251205-065105_32.0F_0001.fit"
+    bias_path_ad = "calibration_frames/Bias_1.0ms_Bin1_ISO100_20251205-065105_32.0F_0001.fit"
     #dark_path = #"calibration_frames\Dark_30.0s_Bin1_ISO100_20251205-065203_32.0F_0001.fit" #"calibration_frames/NGC0891 darks_00015.fits"
-    dark_path = 'calibration_frames/NGC0891 darks_00015.fits'
-    flat_path = "calibration_frames/Flat_300.0ms_Bin1_ISO100_20251205-064251_32.0F_0001.fit"
+    dark_path_ad = 'calibration_frames/NGC0891 darks_00015.fits'
+    flat_path_ad = "calibration_frames/Flat_300.0ms_Bin1_ISO100_20251205-064251_32.0F_0001.fit"
+
+    bias.append(fits.getdata(bias_path_ad).astype(float))
+    dark.append(fits.getdata(dark_path_ad).astype(float))
+    flat.append(fits.getdata(flat_path_ad).astype(float))
+
+
+    bias_path_psc = "calibration_frames/other_calibratoin/Bias_1.0ms_Bin1_ISO100_20251205-065130_32.0F_0010.fit"
+    dark_path_psc = "calibration_frames/other_calibratoin/Dark_30.0s_Bin1_ISO100_20251205-065700_35.6F_0010.fit"
+    flat_path_psc = "calibration_frames/other_calibratoin/Flat_300.0ms_Bin1_ISO100_20251205-064753_32.0F_0010.fit"
+
+    
+    bias.append(fits.getdata(bias_path_psc).astype(float))
+    dark.append(fits.getdata(dark_path_psc).astype(float))
+    flat.append(fits.getdata(flat_path_psc).astype(float))
+
+
     data_map_paths = [
-        "data_maps/real_data_map_Delta Scuti 2025-11-15.csv",
+        #"data_maps/real_data_map_Delta Scuti 2025-11-15.csv",
         #"data_maps/real_data_map_Alderamin (Alpha Cephi) 2025-11-15.csv",
         #"data_maps/real_data_map_IM Tauri 2025-11-15.csv"
-        #"data_maps/real_data_map_97 Psc.csv"
+        "data_maps/real_data_map_97 Psc.csv"
     ]
 
     # star names
 
     star_names = [
-        "Delta Scuti",
+        #"Delta Scuti",
         #"Alderamin",
         #"IM Tauri"
-        #"97 Psc"
+        "97 Psc"
     ]
 
+    Centroid_override = [
+         np.array([( 1994.7199021208542,3154.135590131793 )]),#None,
+    ]
     # Load calibration frames
-    bias = fits.getdata(bias_path).astype(float)
-    dark = fits.getdata(dark_path).astype(float)
-    flat = fits.getdata(flat_path).astype(float)
+   
     
     #create ModelingCompiler instance
-    compiler = MC.ModelingCompiler(bias, dark, flat, data_map_paths, star_names)
+    compiler = MC.ModelingCompiler(bias, dark, flat, data_map_paths, star_names, Centroid_override)
     compiler.compile_light_curves()
     uni = get_unit_vector(star_names[0])
     #uni2 = get_unit_vector(star_names[1])
