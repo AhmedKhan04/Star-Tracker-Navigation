@@ -36,8 +36,8 @@ location, the signal arrives with a **geometric light‑travel delay**.
 
 Where:
 
--   û : unit vector toward the star\
--   r : spacecraft position vector\
+-   û : unit vector toward the star
+-   r : spacecraft position vector
 -   c : speed of light
 
 The spacecraft clock may also contain an unknown offset:
@@ -114,8 +114,9 @@ astropy
 pandas
 matplotlib
 lightkurve   # optional, for testing with the lightkurve library
+``` 
 
-This navigation method is relevant for:
+## This navigation method is relevant for:
 
 -   deep‑space spacecraft
 -   autonomous probes
