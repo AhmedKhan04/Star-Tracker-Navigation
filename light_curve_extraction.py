@@ -72,7 +72,6 @@ class LightCurveExtractor:
         except Exception as e:
             print(f"Error in load_calibrated: {e}")
             return (data - self.dark)
-        #return (data - self.bias - self.dark) / flat_norm
 
 
     def get_max(self, img): 
@@ -137,13 +136,6 @@ class LightCurveExtractor:
                 frac = frac[:6]  # keep only first 6 digits
                 date_obs_clean = f"{date_part}.{frac}"
 
-            # (example: ''2025-11-03T00:41:16.2910676' / System Clock:Est. Frame Mid Point')
-            #dt = datetime.fromisoformat(date_obs)
-            #print(dt)
-            # Convert to fractional hours since start of day (UTC)
-            #utc_float =  dt.hour + dt.minute / 60 + dt.second / 3600 + dt.microsecond / (3600 * 1e6)
-            #rint(f"UTC time (fractional hours): {utc_float}")  
-
             t_utc = Time(date_obs_clean, format='isot', scale='utc')
             t_tbd = t_utc.tdb
             btjd = t_tbd.jd - 2457000.0
@@ -203,17 +195,25 @@ class LightCurveExtractor:
 
             if self.Centroid_override is not None:
                 cords = self.Centroid_override # override for testing
-                if(self.allignment_needed//10 == 0):
-                    transform, _ = aa.find_transform(calibrated_second[::5], self.reference_frame[::5])
+                # if(self.allignment_needed//10 == 0):
+                #     transform, _ = aa.find_transform(calibrated_second[::5], self.reference_frame[::5])
 
-                    calibrated_second,_ = aa.apply_transform(
-                        transform,
-                        calibrated_second,
-                        self.reference_frame
-                    )
-                    print("Applied image alignment using astroalign.")
-                    #calibrated_second, footprint = aa.register(calibrated_second, self.reference_frame) # allignement 
+                #     calibrated_second,_ = aa.apply_transform(
+                #         transform,
+                #         calibrated_second,
+                #         self.reference_frame
+                #     )
+                #     print("Applied image alignment using astroalign.")
+                #     #calibrated_second, footprint = aa.register(calibrated_second, self.reference_frame) # allignement 
+                #     max_idx = np.unravel_index(np.argmax(calibrated_second), calibrated_second.shape)
+                #     row, col = max_idx
+                #     print(row, col)
+                #     cords = np.array([(col, row)])  # update cords after alignment
+                max_idx = np.unravel_index(np.argmax(calibrated_second), calibrated_second.shape)
+                row, col = max_idx
+                cords = np.array([(row,col)])
                 print("Using Centroid Override:", cords)
+                
                 self.allignment_needed += 1
             cords_transformed = cords #transform(cords)
 
@@ -362,27 +362,10 @@ class LightCurveExtractor:
             bkg_sum = bkg_mean * area
             final_sum = photom_table['aperture_sum_0'] - bkg_sum
             
-            #print(final_sum)
 
             self.saving_constant += 1
             self.photom_list.append(final_sum.value[0])
 
-            
-
-            """self.photom_list = photom_list
-            self.date_array = date_array"""
-
-
-            """
-            if (saving_constant % 10 == 0 and saving_constant != 0 and light_curve_extraction == True):
-                plt.figure()
-                plt.plot(photom_list)
-                plt.xlabel("Image number")
-                plt.ylabel("Flux (arbitrary units)")
-                plt.title("Light Curve of Target Star")
-                #plt.savefig(r"images\light_curve.png")
-                plt.show()
-            """
 
         self.photom_list, self.date_array = self.drop_outliers(self.photom_list, self.date_array, threshold=2)
         

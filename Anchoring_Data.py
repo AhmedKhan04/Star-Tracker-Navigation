@@ -18,6 +18,9 @@ class anchoringData:
     def __init__(self, NameStar):
         self.NameStar = NameStar
         self.c  = 299792458  # (m/s) speed of light
+        # if NameStar is "V376 Perseus": 
+        #     self.time_array, self.flux_array = self.pull_from_file("")
+        # else: 
         self.time_array, self.flux_array = self.pull_lightcurve_data(NameStar)
         #print(self.time_array.unit)
         #self.r_earth = get_body_barycentric(body = "earth", time=  self.time_array).xyz.to(u.m)  # shape: (3, N)
@@ -34,10 +37,10 @@ class anchoringData:
         self.t_Earth, self.flux_Earth = self.time_array, self.flux_array  # overrite time to be able to not anchor model for now...
         modeling_instance = sm.StarModeling(tuples_values=list(zip(self.t_Earth, self.flux_Earth)))
         self.model_ref_model, _, self.model_ref_model_string = modeling_instance.getCompositeSine2_deep(self.NameStar)
-        plt.figure() 
-        plt.plot(self.time_array, self.flux_array, label="Earth Frame Light Curve")
+        #plt.figure() 
+        #plt.plot(self.time_array, self.flux_array, label="Earth Frame Light Curve")
         #plt.plot(self.time_array, self.model_ref_model, label="Model Reference Model")
-        plt.show() 
+        #plt.show() 
 
 
 
@@ -48,12 +51,16 @@ class anchoringData:
         #relative to solar-system barycenter
         index = 0 
         x = lk.search_targetpixelfile(nameStar)
-        if nameStar == "Delta Scuti":
+        if nameStar == "V376 Perseus":
             index = 1
+            x= x[index].download().to_lightcurve()
+        elif nameStar == "Delta Scuti": 
+            index = 1 
             x = lk.search_lightcurve(nameStar)[-1].download()
         else: 
 
             x= x[index].download().to_lightcurve()
+            #x.plot()
         # lets do some detrending here to get a cleaner light curve for the anchoring.
         # time, flux = [], []
         # result = lk.search_tesscut(nameStar)[-2:] 
@@ -94,6 +101,12 @@ class anchoringData:
         t_Earth = self.time_array.value - self.time_delay
         return t_Earth, self.flux_array
     
+    def pull_from_file(self, file_path):
+        df = pd.read_csv(file_path)
+        time_array = df['Time'].to_numpy()
+        flux_array = df['Flux'].to_numpy()
+        return time_array, flux_array
+
 
     def plot_comparison(self):
         #time_earth, flux_earth = self.get_anchored_lightcurve()

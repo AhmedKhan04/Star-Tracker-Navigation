@@ -5,6 +5,7 @@ from astropy.io import fits
 from astropy.wcs import WCS
 import astropy.units as u
 from astropy.coordinates import SkyCoord
+from matplotlib import patches
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy.stats import sigma_clipped_stats
@@ -12,23 +13,60 @@ from astropy.stats import sigma_clipped_stats
 from photutils.detection import DAOStarFinder
 
 def test1():
-    hdul = fits.open("real_data\97 Psc/Light_97 Piscium_30.0s_Bin1_ISO100_20251204-220742_26.6F_0114.fit")
+    hdul = fits.open('real_data\V376 Perseus\Light_V376 Persei_5.0s_Bin1_ISO100_20251123-040219_50.0F_0288.fit')
 
     #hdul = fits.open("real_data/Alderamin (Alpha Cephi) 2025-11-15/21_15_17/Alderamin (Alpha Cephi)_00001.fits")
     data = hdul[0].data.astype(float)
     header = hdul[0].header
+
     w = WCS(header)
 
     # Check what RA/Dec the image center actually points to
     ny, nx = data.shape
     center_coord = w.pixel_to_world(nx//2, ny//2)
+    mean_s, median_s, std_s  = sigma_clipped_stats(data, sigma=3.0)
     print(f"Image center points to: {center_coord}")
+    half_box = 200
+    fig, ax = plt.subplots()
+    plt.imshow(data, origin='lower', cmap='gray',
+        vmin=median_s - 1*std_s, vmax=median_s + 5*std_s)
+
+    rect = patches.Rectangle(
+        (nx//2 - half_box, ny//2 - half_box),  # bottom-left corner
+        half_box * 2, half_box * 2,              # width, height
+        linewidth=2, edgecolor='red', facecolor='none'
+    )
+    ax.add_patch(rect)
+    
 
     # Check where your target falls in pixel space
     ra  = header['CRVAL1']
     dec = header['CRVAL2']
     coord = SkyCoord(ra*u.deg, dec*u.deg)
+   
     px, py = w.world_to_pixel(coord)
+
+    rect = patches.Rectangle(
+        (py - half_box, px - half_box),  # bottom-left corner
+        half_box * 2, half_box * 2,              # width, height
+        linewidth=2, edgecolor='blue', facecolor='none'
+    )
+    max_idx = np.unravel_index(np.argmax(data), data.shape)
+    row, col = max_idx
+    print(row, col)
+    
+    ax.add_patch(rect)
+
+
+    rect = patches.Rectangle(
+        (col - half_box, row - half_box),  # bottom-left corner
+        half_box * 2, half_box * 2,              # width, height
+        linewidth=2, edgecolor='green', facecolor='none'
+    )
+    ax.add_patch(rect)
+    plt.scatter(nx//2, ny//2, color='red', s=20, marker='+')
+    plt.title("Raw image with search box")
+    plt.show()
     print(f"Target pixel coords: ({px:.1f}, {py:.1f})")
     print(f"Image size: {nx} x {ny}")
     print(f"Target in frame: {0 < px < nx and 0 < py < ny}")
@@ -102,10 +140,11 @@ def test4():
 def test5():
     from astropy.io import fits
 
-    hdul = fits.open("real_data\\97 Psc\\Light_97 Piscium_30.0s_Bin1_ISO100_20251204-195143_28.4F_0004.fit")
+    hdul = fits.open("real_data\V376 Perseus\Light_V376 Persei_5.0s_Bin1_ISO100_20251123-005741_50.0F_0114.fit")
     for key, value in hdul[0].header.items():
         print(f"{key}: {value}")
     hdul.close()
 
-test4()
+test5()
+
 

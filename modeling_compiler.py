@@ -12,7 +12,7 @@ import comparision_models as CE
 
 #compile all 
 # adding ploting flag to control whether to plot the light curves and models after compilation. This allows for flexibility in usage, especially when running in environments where plotting may not be desired or possible.
-plot_models = True
+plot_models = False 
 class ModelingCompiler:
 
     def __init__(self, bias, dark, flat_norm, date_maps = None, star_names = None, Centroid_override = None):

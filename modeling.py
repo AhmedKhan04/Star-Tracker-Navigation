@@ -42,17 +42,17 @@ class StarModeling:
         print("Fetching lightcurve and periodogram data...")
 
         x = lk.search_targetpixelfile(nameOfStar)
-        #print(x)
+        print("SEARCH RESULTS")
+        print(x)
+        print("-" * 50)
         x= x[0].download().to_lightcurve()
-        #print("Lightcurve and periodogram data fetched.")
-        #lightcurve = lk.search_lightcurve(nameOfStar).download_all().stitch().remove_outliers(sigma = 5.0)
+        
         x_coords, y_coords = zip(*self.lightcurve_tuple_list)
         x_coords = np.array(x_coords)
         y_coords = np.array(y_coords)
 
         lightcurve = lk.LightCurve(time=x_coords, flux=y_coords)
         
-        #y = lk.search_lightcurve(nameOfStar, quarter=(6,7,8)).download_all().stitch().remove_outliers(sigma = 5.0)
         periodogram = x.to_periodogram()
         
 
@@ -127,16 +127,6 @@ class StarModeling:
         freqs = pg.frequency[filtered_peaks]#.value
         powers = pg.power[filtered_peaks]#.value
 
-        # pt.figure(figsize=(10, 6))
-        # pt.plot(pg.frequency, pg.power, label='Periodogram')
-        # pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
-        # pt.xlabel('Frequency (cycles/BKJD)')
-        # pt.ylabel('Power')
-        # pt.title('Periodogram with Local Maxima: '+ nameOfStar)
-        # pt.legend()
-        # pt.show()
-
-        
         
         return freqs, lightc, powers
 
@@ -173,15 +163,12 @@ class StarModeling:
             #return -1, 0
             
             powers_2 = pg.power[filtered_peaks].value
-            #print(powers_2)
-            #print(powers_2)
-            #print("hello!" )
+
             new_filter = np.argsort(powers_2)[-10:]
-            #print(new_filter)
-            #print(type(new_filter))
+
             filtered_peaks = np.array(filtered_peaks)
             filtered_peaks = filtered_peaks[new_filter] # keep top 10 peaks
-            #print(filtered_peaks)
+       
 
         powers = pg.power[filtered_peaks]
         return powers, ltcurves
@@ -279,10 +266,10 @@ class StarModeling:
             return [0],[0],[0]
 
         while b < len(frequencyfitted):
-            offset_guess = np.mean(flux)
+            offset_guess = np.percentile(flux, 50)  # Median
             flux_range = np.percentile(flux, 95) - np.percentile(flux, 5)
             amplitude_guess = flux_range
-            amplitude_guess_upper = amplitude_guess
+            amplitude_guess_upper = amplitude_guess*1.2
             phase_guess = 0
     
             frequency_guess = frequencyfitted[b].value
@@ -299,6 +286,8 @@ class StarModeling:
             if len(time) == 0 or len(flux) == 0:
                 raise ValueError("After cleaning, the time or flux array is empty.")
             #ig = [(np.max(flux) - np.min(flux))/2, 0, frequencyfitted[b].value, np.mean(flux)]
+            print(ig)
+            print(bounds)
             params, _ = curve_fit(self.sine_model, time, flux, p0=ig, bounds=bounds, method='dogbox', maxfev=999999999)
             amplitude, phase, frequency, offset = params
             fit_c = self.sine_model(time, *params)
@@ -780,42 +769,13 @@ class StarModeling:
         tshift = int(np.floor((true_time[0] + OFFSET - 2400000.5)/100)*100)
         margin = 0.5  # days
 
-        """
-        fig_oc, axs = pt.subplots(1, len(segments), figsize=(8,3), sharey=True, 
-                                gridspec_kw={'wspace': 0, 'hspace': 0},
-                                width_ratios=[seg[-1]-seg[0] + margin*2 for seg in segments])
-
-        if not isinstance(axs, np.ndarray):
-            axs = [axs]
-
-        for ii, ax in enumerate(axs):
-            ax.scatter(true_time-tshift + OFFSET - 2400000.5, true_time-est_time, c='k', s=0.5, label = "Phase Shift (BKJD Days)")
-            if ii == 0:
-                ax.set_ylabel(r'$\epsilon_{d}$ (Days)')
-            
-                pt.title(f"Epsilon Values for KIC {star_name}")
-            ax.set_xlim(segments[ii][0]-tshift + OFFSET - 2400000.5 - margin, 
-                        segments[ii][-1]-tshift + OFFSET - 2400000.5 + margin)
-        
-        positive_data = np.abs(true_time-est_time)
-        m, b = np.polyfit(true_time-tshift + OFFSET - 2400000.5, positive_data, 1)
-        x = true_time-tshift + OFFSET - 2400000.5
-        pt.plot(x, x*m + b, color = 'r', label = "Linear Drift", linestyle = '--')
-        fig_oc.supxlabel(f'Time (MJD) + {tshift}', fontsize=11, y=-0.05)
-        """
         data = true_time-est_time
         m, b = np.polyfit(true_time-tshift + OFFSET - 2400000.5, data, 1)
         x = true_time-tshift + OFFSET - 2400000.5
 
-        #pt.plot(x, x*m + b, color = 'r', label = "Linear Drift", linestyle = '--')
-        #fig_oc.supxlabel(f'Time (MJD) + {tshift}', fontsize=11, y=-0.05)
-
-
-
         regression = x*m + b 
         residuals = data - regression 
         sig = np.std(residuals)
-        #print(f" normalized eps {np.mean(true_time-est_time)/dsct_per}")
         return true_time-est_time, sig, m, dsct_per
     
     def guess_baseline(self, nameOfStar):

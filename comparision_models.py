@@ -20,6 +20,9 @@ class comparision_extractor:
         
         
         self.model_ref_model, self.model_ref_model_string = self.anchoring_instance.model_ref_model, self.anchoring_instance.model_ref_model_string
+        
+         
+        
         print("Original anchored model string:", self.model_ref_model_string)
         self.model_ref_model_string = re.sub(r'π', ' * np.pi', self.model_ref_model_string)
         self.model_ref_model_string = re.sub(r'f\(t\) = ', '', self.model_ref_model_string)
@@ -27,18 +30,19 @@ class comparision_extractor:
         self.model_ref_model_string = re.sub(r'\s+', ' ', self.model_ref_model_string)
         
         print("Processed anchored model string:", self.model_ref_model_string)
+       # self.model_string_real = self.model_ref_model_string #####
 
         self.model_real = eval(self.model_string_real, {"np": np, "t": self.date_array_real})
         self.model_ref_model = eval(self.model_ref_model_string, {"np": np, "t": self.date_array_real})
 
         # normalize both of these models. 
-        self.model_ref_model = self.model_ref_model - np.mean(self.model_ref_model)
-        self.model_real = self.model_real - np.mean(self.model_real)
+        #self.model_ref_model = self.model_ref_model - np.mean(self.model_ref_model)
+        #self.model_real = self.model_real - np.mean(self.model_real)
 
 
 
-        self.model_anchored_real_time = self.model_ref_model / np.max(np.abs(self.model_ref_model))
-        self.model_real = self.model_real / np.max(np.abs(self.model_real))
+        self.model_anchored_real_time = self.model_ref_model #/ np.max(np.abs(self.model_ref_model))
+        #self.model_real = self.model_real / np.max(np.abs(self.model_real))
 
 
 

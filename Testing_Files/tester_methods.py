@@ -2,7 +2,7 @@ import os
 import pandas as pd 
 
 folder_path = "real_data/"
-star_names = ["Delta Scuti 2025-11-15"]
+star_names = ["Tau Cygni 2025-11-15"]
 
 for star in star_names:
     final_map = []
@@ -12,11 +12,13 @@ for star in star_names:
     for file in star_data_files:
         data_point_path = f"{star_data_path}/{file}"
         print(data_point_path)
+
         for file in os.listdir(data_point_path): # only want fits files to be pulled
             #print(file)
+            print(file)
             if file.endswith(".fits"):
                 final_string = f"{data_point_path}/{file}"
-                print(f"{data_point_path}/{file}")
+                print(final_string)
                 final_map.append(final_string)
     pd.DataFrame(final_map, columns=["FITS File Path"]).to_csv(f"real_data_map_{star}.csv", index=False)
 
