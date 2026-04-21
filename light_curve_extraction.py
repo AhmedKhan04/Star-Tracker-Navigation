@@ -322,18 +322,20 @@ class LightCurveExtractor:
                 #aperture.plot(lw=2, color='red', label='Optimal Aperture Radius')
 
                 ap_radius = optimal_radius
-                ann_inner = optimal_radius + 3
+                ann_inner = optimal_radius + 5
                 ann_width = 3
 
                 #aper_t = CircularAperture(cords_transformed[0], r=ap_radius)
                 aper_t = aperture
                 ann_t = CircularAnnulus((x4,y4), r_in=ann_inner, r_out=ann_inner+ann_width)
                 if(plotting == True):
-                    ann_t.plot(color='blue')
+                    ann_t.plot(color='red', lw= 3, label = 'Background Annulus')
 
-                    plt.legend()
+                    
                     # optionally, mark the star center
-                    plt.scatter(x4, y4, color='red', s=10)
+                    plt.title(f"Star Centroid and Photometry for Alderamin")
+                    plt.scatter(x4, y4, color='blue', s=10, label='Star Centroid')
+                    plt.legend()
 
                     plt.show()
 
@@ -356,25 +358,32 @@ class LightCurveExtractor:
             #print(photom_table)
 
             area =  np.pi * (ann_inner + ann_width)**2 - np.pi * (ann_inner)**2
+            ap_area  = np.pi * (ann_inner**2)
 
 
             bkg_mean = photom_table['aperture_sum_1'] / area
-            bkg_sum = bkg_mean * area
+            bkg_sum = bkg_mean * ap_area
             final_sum = photom_table['aperture_sum_0'] - bkg_sum
+            final_sum /= ap_area  # normalize by aperture area to get mean flux per pixel in the aperture
             
-
+            
+            
             self.saving_constant += 1
             self.photom_list.append(final_sum.value[0])
+            print(self.photom_list)
 
 
         self.photom_list, self.date_array = self.drop_outliers(self.photom_list, self.date_array, threshold=2)
         
         if normalize:
-            self.photom_list = self.normalize_lightcurve()
+            pass
+            #self.photom_list = self.normalize_lightcurve()
         
         if plotting:
             self.plot_lightcurve()
-
+        self.plot_lightcurve()
+        
+        #self.plot_lightcurve()
         return self.photom_list, self.date_array
     
 
@@ -400,11 +409,12 @@ class LightCurveExtractor:
         if self.photom_list is None or self.date_array is None:
             print("No light curve data to plot. Please run extract_light_curve() first.")
             return
-
+        print("Plotting light curve...")
+        
         plt.figure()
         plt.scatter(self.date_array, self.photom_list)
         plt.xlabel("Time (days since Kepler epoch)")
-        plt.ylabel("Flux (arbitrary units)")
+        plt.ylabel("Flux (ADU)")
         plt.title(f"Light Curve of {self.star_name}")
         plt.show()
 

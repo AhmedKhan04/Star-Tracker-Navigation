@@ -11,7 +11,7 @@ import numpy as np
 from astropy.stats import sigma_clipped_stats
 from astropy.stats import sigma_clipped_stats
 from photutils.detection import DAOStarFinder
-
+import lightkurve as lk
 def test1():
     hdul = fits.open('real_data\V376 Perseus\Light_V376 Persei_5.0s_Bin1_ISO100_20251123-040219_50.0F_0288.fit')
 
@@ -145,6 +145,42 @@ def test5():
         print(f"{key}: {value}")
     hdul.close()
 
-test5()
+
+
+def compGetPeriodogramData(nameOfStar): 
+    """
+    Helper function to get light curve and periodogram data.
+
+    Args:
+        nameOfStar (str): KIC code to search for.
+
+    Returns:
+        tuple: (Periodogram, LightCurve)
+    """
+    print("Fetching lightcurve and periodogram data...")
+
+    x = lk.search_targetpixelfile(nameOfStar)
+    lk.
+    print("SEARCH RESULTS")
+    print(x)
+    print("-" * 50)
+    x= x[0].download()#.to_lightcurve()
+    
+    # x_coords, y_coords = zip(*self.lightcurve_tuple_list)
+    # x_coords = np.array(x_coords)
+    # y_coords = np.array(y_coords)
+
+    # lightcurve = lk.LightCurve(time=x_coords, flux=y_coords)
+    
+    periodogram = x.to_periodogram()
+    
+
+    return periodogram#, lightcurve
+
+
+p = compGetPeriodogramData("Alderamin")
+p.plot()
+
+#test5()
 
 
