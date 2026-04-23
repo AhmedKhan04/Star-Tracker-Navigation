@@ -13,7 +13,7 @@ from astropy import units as u
 from astropy.time import Time
 from astropy.coordinates import get_body_barycentric, EarthLocation
 from astropy.io import fits
-import modeling_compiler as MC
+import Python_Model.modeling_compiler as MC
 
 # ── Physical constants ──────────────────────────────────────────────────────
 C_L         = 299792458.0

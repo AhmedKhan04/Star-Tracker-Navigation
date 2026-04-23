@@ -3,12 +3,12 @@ import matplotlib.pyplot as plt
 import scipy as sp
 from astropy.io import fits
 
-import modeling as sm 
-import light_curve_extraction as lce
+import Python_Model.modeling as sm 
+import Python_Model.light_curve_extraction as lce
 import pandas as pd 
 
-import Anchoring_Data as AD 
-import comparision_models as CE 
+import Python_Model.Anchoring_Data as AD 
+import Python_Model.comparision_models as CE 
 
 #compile all 
 # adding ploting flag to control whether to plot the light curves and models after compilation. This allows for flexibility in usage, especially when running in environments where plotting may not be desired or possible.

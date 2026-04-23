@@ -26,7 +26,7 @@ from astropy.wcs import WCS
 import astroalign as aa
 
 
-import modeling as sm 
+import Python_Model.modeling as sm 
 
 
 

@@ -16,7 +16,7 @@ from navigation import (
     RealStar, DeltaScutiStar, Spacecraft, NAV,
     get_unit_vector,
 )
-import modeling_compiler as MC
+import Python_Model.modeling_compiler as MC
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────

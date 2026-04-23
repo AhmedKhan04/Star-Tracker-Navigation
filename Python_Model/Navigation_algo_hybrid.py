@@ -11,12 +11,12 @@ from astroquery.jplhorizons import Horizons
 from astropy.time import Time
 from astropy.coordinates import get_body_barycentric, EarthLocation
 from astropy.io import fits
-import modeling_compiler as MC
+import Python_Model.modeling_compiler as MC
 from astropy.io import fits
 import scienceplots
 from itertools import combinations
 
-from run_test_cases import make_synthetic_star
+from Python_Model.run_test_cases import make_synthetic_star
 
 # Physical constants
 C_L = 299792458.0  # m/s

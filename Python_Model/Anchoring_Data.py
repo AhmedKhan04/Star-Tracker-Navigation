@@ -8,7 +8,7 @@ import time
 import unpopular
 import pandas as pd
 
-import modeling as sm
+import Python_Model.modeling as sm
 
 
 class anchoringData:
