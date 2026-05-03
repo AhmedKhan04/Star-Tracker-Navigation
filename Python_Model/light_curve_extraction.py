@@ -107,12 +107,10 @@ class LightCurveExtractor:
         dec = None 
 
         for filename in self.file_list:
-            file_path = filename 
+            file_path = filename  # Step 1: Get the file path from the list
             
         
             print(file_path)
-            ############
-            # OVERRIDE FOR TESTING
 
             hdul = fits.open(file_path, memmap=True, do_not_scale_image_data=True)
    
@@ -136,7 +134,7 @@ class LightCurveExtractor:
                 frac = frac[:6]  # keep only first 6 digits
                 date_obs_clean = f"{date_part}.{frac}"
 
-            t_utc = Time(date_obs_clean, format='isot', scale='utc')
+            t_utc = Time(date_obs_clean, format='isot', scale='utc') # Step 2: Time and then convert to BKJD 
             t_tbd = t_utc.tdb
             btjd = t_tbd.jd - 2457000.0
             self.date_array.append(btjd)
@@ -144,25 +142,18 @@ class LightCurveExtractor:
 
             if (self.reference_frame is None):
                 self.reference_frame = calibrated_second
-            #calibrated_second = self.load_calibrated(calibrated_second) ##################################################################
-
             try: 
-                w = WCS(hdul[0].header)
+                w = WCS(hdul[0].header) # Step 3: Attempt to read WCS information from the FITS header. May be wrong in some cases suprisingly, 
                 ra, dec = None , None
-                # ra  = hdul[0].header.get('OBJCTRA')
+                # ra  = hdul[0].header.get('OBJCTRA') # some playing around 
                 # dec = hdul[0].header.get('OBJCTDEC')
-                if ra is None or dec is None:
-                    # fallback to CRVAL if OBJCT keywords missing
+                if ra is None or dec is None: 
                     ra  = hdul[0].header['CRVAL1']
                     dec = hdul[0].header['CRVAL2']
-
             except Exception as e:
                 print("WCS information not found in header:", e)
                 print("Using last known coordinates or image center.")
-
-
             hdul.close()
-
             #mean_s, median_s, std_s = sigma_clipped_stats(calibrated_second, sigma=3.0)
 
             if plotting: 
@@ -173,22 +164,16 @@ class LightCurveExtractor:
                             vmax=median_s + 5*std_s)                
                 # axes.axis('off')
                 # axes.set_title("Specific Image")
-
                 plt.tight_layout()
                 plt.show()
                 plt.figure()
-            
-
-            #---------------------------
-
+            # Step 4: If WCS is available, convert RA/Dec to pixel coordinates. If not, use the image center or last known coordinates.
             try: 
-                coord = SkyCoord(ra*u.deg, dec*u.deg)
-                # ovverride  
+                coord = SkyCoord(ra*u.deg, dec*u.deg) 
                 px, py = w.world_to_pixel(coord)
                 cords = np.array([(py, px)]) 
                 #cords = np.array([(4172.811152197043, 3099.9668610156855)]) # override for testing
-                
-                print(cords)
+                #print(cords)
             except Exception as e:
                 print("WCS conversion failed:", e)
                 print("Using last known coordinates or image center.")
@@ -215,10 +200,11 @@ class LightCurveExtractor:
                 print("Using Centroid Override:", cords)
                 
                 self.allignment_needed += 1
-            cords_transformed = cords #transform(cords)
 
+            # Create a window around the star's coordinates for photometry. This is a simple box, but could be improved to a more sophisticated shape if needed.
+            cords_transformed = cords #transform(cords)
             nx, ny = calibrated_second.shape
-            print(nx,ny)
+            #print(nx,ny)
             t_p = cords_transformed
             x, y = t_p[0]
             x, y = int(x), int(y)
@@ -234,18 +220,19 @@ class LightCurveExtractor:
             
             if(cords_transformed is None):
                 #print("No stars found, using previous coordinates") 
-                cords_transformed = past_cord
+                cords_transformed = past_cord # if fail for some reason we have a fall back 
             else:
-                background = np.min(calibrated_second)
-                
-                data_background_subtracted = calibrated_second # - background
-                PRE_MASK = data_background_subtracted
-                data_background_subtracted = data_background_subtracted[x1:x2, y1:y2]
+                # centering the data around zero to improve centroiding accuracy
+                #background = np.min(calibrated_second)
+                data_adjusted = calibrated_second # - background
+                PRE_MASK = data_adjusted
+                data_adjusted = data_adjusted[x1:x2, y1:y2]
                 #data_background_subtracted = -np.min(data_background_subtracted) + data_background_subtracted
-                _, bkg_median, _ = sigma_clipped_stats(data_background_subtracted, sigma=3.0)
-                data_background_subtracted = data_background_subtracted - bkg_median #######################################################
-               
-                smoothed = data_background_subtracted# sp.ndimage.gaussian_filter(data_background_subtracted, sigma=2)
+                _, bkg_median, _ = sigma_clipped_stats(data_adjusted, sigma=3.0)
+                data_adjusted = data_adjusted - bkg_median 
+
+                # seeing if smoothing may help with centroiding, but it may not be necessary and could potentially blur the star too much
+                smoothed = data_adjusted# sp.ndimage.gaussian_filter(data_background_subtracted, sigma=2)
                 if plotting and self.Centroid_override is not None: 
                     import matplotlib.patches as patches
         
@@ -266,27 +253,24 @@ class LightCurveExtractor:
                     plt.title("Raw image with search box")
                     plt.show()
 
+                # Find Centroid. 1dg was chosen for speed, but 2dg or com could be used for potentially better accuracy at the cost of speed.
                 x4, y4 = centroid_1dg(smoothed) #centroid_com(smoothed) # centroid_2dg(smoothed)
-                #plt.scatter(x4, y4, color='red', s=10)
-
-                #plt.show()
+  
                 if plotting:
                     plt.figure()
-                    plt.imshow(data_background_subtracted, cmap='gray', origin='lower', vmin=median_s - 1*std_s, vmax=median_s + 5*std_s)    
+                    plt.imshow(data_adjusted, cmap='gray', origin='lower', vmin=median_s - 1*std_s, vmax=median_s + 5*std_s)    
                     plt.show()
                     plt.figure()
-                #plt.imshow(calibrated_second * mask, cmap='blues', origin='lower')    
-                #plt.show()
                 cords_transformed = np.array([(x4 + y1, y4 + x1)])
                 radii = np.arange(1,15)
-                cog = CurveOfGrowth(data_background_subtracted, (x4,y4), radii, mask=None)
+                cog = CurveOfGrowth(data_adjusted, (x4,y4), radii, mask=None)
                 #cog = RadialProfile(data_background_subtracted, (x4,y4), radii, mask=None)
                 growth_rate = np.diff(cog.profile)
                 growth_rate = np.diff(growth_rate) # second derivative
-                try:  
+                try:   
                     optimal_index  = np.where(growth_rate < 0)[0][0] 
-                    optimal_radius = radii[optimal_index -1 ] # +1 because of the double diff 
-                except IndexError as e:
+                    optimal_radius = radii[optimal_index + 2 ] # adjustment here because of the double diff N -> N-1 -> N-2 
+                except IndexError as e: # if no negative growth rate is found, it means the curve of growth is still increasing at the largest radius, so we can just take the largest radius as the optimal aperture
                     print(e)
                     try:
                         optimal_index = optimal_index # use last used index
@@ -295,39 +279,32 @@ class LightCurveExtractor:
                         print(e)
                         optimal_index = len(growth_rate)//2
                         optimal_radius = radii[optimal_index] # default value if all else fails
-                #print("Optimal aperture radius:", optimal_radius)
-        
-                #threshold = 0.1* np.max(growth_rate)  # e.g., 1% of max growth
-                #optimal_index = np.where(growth_rate < threshold)[0][0]
-                #optimal_radius = radii[(optimal_index)]
-                #print("Optimal aperture radius:", optimal_radius)
+
                 if(plotting == True):
                     plt.figure()
-                    plt.imshow(data_background_subtracted, cmap='Grays', origin='lower')    
+                    plt.imshow(data_adjusted, cmap='Grays', origin='lower')    
                     plt.colorbar(label="Flux (ADU)")
                     plt.xlabel("X [pixels]")
                     plt.ylabel("Y [pixels]")
 
                 # overlay aperture circles
                 indexed_apertures = []
-                
-                for r in radii:
-                    aperture = CircularAperture((x4, y4), r=r)
-                    indexed_apertures.append(aperture)
-                    if(plotting == True):
-                        aperture.plot(lw=1, alpha=0.5)
-                
-                #aperture = CircularAperture((x4, y4), r=optimal_radius)
                 aperture = indexed_apertures[optimal_index]
-                #aperture.plot(lw=2, color='red', label='Optimal Aperture Radius')
+
+                if (plotting == True):
+                    for r in radii:
+                        aperture = CircularAperture((x4, y4), r=r)
+                        indexed_apertures.append(aperture)
+                        if(plotting == True):
+                            aperture.plot(lw=1, alpha=0.5)
+                    aperture = indexed_apertures[optimal_index]
 
                 ap_radius = optimal_radius
-                ann_inner = optimal_radius + 5
+                ann_inner = optimal_radius #+ 5
                 ann_width = 3
-
-                #aper_t = CircularAperture(cords_transformed[0], r=ap_radius)
                 aper_t = aperture
                 ann_t = CircularAnnulus((x4,y4), r_in=ann_inner, r_out=ann_inner+ann_width)
+
                 if(plotting == True):
                     ann_t.plot(color='red', lw= 3, label = 'Background Annulus')
 
@@ -354,9 +331,8 @@ class LightCurveExtractor:
             
             apertures = [aper_t, ann_t]
             
-            photom_table = aperture_photometry(data_background_subtracted, apertures) # photom_table will contain aperture_sum and annulus_sum for each entry
-            #print(photom_table)
-
+            photom_table = aperture_photometry(data_adjusted, apertures) # photom_table will contain aperture_sum and annulus_sum for each entry
+   
             area =  np.pi * (ann_inner + ann_width)**2 - np.pi * (ann_inner)**2
             ap_area  = np.pi * (ann_inner**2)
 
@@ -365,9 +341,7 @@ class LightCurveExtractor:
             bkg_sum = bkg_mean * ap_area
             final_sum = photom_table['aperture_sum_0'] - bkg_sum
             final_sum /= ap_area  # normalize by aperture area to get mean flux per pixel in the aperture
-            
-            
-            
+
             self.saving_constant += 1
             self.photom_list.append(final_sum.value[0])
             print(self.photom_list)
@@ -381,7 +355,7 @@ class LightCurveExtractor:
         
         if plotting:
             self.plot_lightcurve()
-        self.plot_lightcurve()
+        #self.plot_lightcurve()
         
         #self.plot_lightcurve()
         return self.photom_list, self.date_array

@@ -59,6 +59,7 @@ class ModelingCompiler:
             self.tuple_results.append(extractor.tuple_format())
             #extractor.save_lightcurve(star_name, photom_list, date_array)
 
+            # Use last papers results to get model string and model the data. Pulling frequency data from the Kepler data 
             model, _, model_string = sm.StarModeling(tuples_values=self.tuple_results[i]).getCompositeSine2_deep(self.star_names[i])
            
             

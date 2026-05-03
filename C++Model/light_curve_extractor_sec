@@ -1,0 +1,88 @@
+#include <fitsio.h>
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <numeric>
+#include <optional>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+class LightCurveExtractor {
+struct Image2D {
+    long width = 0, height = 0;
+    std::vector<double> data;
+
+    Image2D() = default;
+    Image2D(long h, long w) : width(w), height(h), data(h * w, 0.0) {}
+
+    double& operator()(long y, long x) { return data[y * width + x]; }
+    double operator()(long y, long x) const { return data[y * width + x]; } // lets me pull values 
+};
+
+
+struct tuple2D{
+    long x;
+    long y;
+};
+
+tuple2D get_midpoint(const Image2D img) {
+    long ny = img.height;
+    long nx = img.width;
+    long x = nx / 2;
+    long y = ny / 2;
+    return {x, y};
+
+}
+
+Image2D load_Calibrated(const Image2D& data) {
+    Image2D calibrated = Image2D(data.height, data.width);
+    double flat_median = 0.0; 
+    for (int i = 0; i < flat.data.size(); ++i) {
+        flat_median += flat.data[i];
+    }
+    flat_median /= flat.data.size();
+    for (int i = 0; i < data.data.size(); ++i) {
+        double flat_norm = flat.data[i] / flat_median;
+        if (flat_norm != 0) {
+            calibrated.data[i] = (data.data[i] - bias.data[i] - dark.data[i]) / flat_norm;
+        } else {
+            calibrated.data[i] = data.data[i] - bias.data[i] - dark.data[i];
+        }
+    }
+}
+
+public:
+    LightCurveExtractor(const Image2D& bias,
+                        const Image2D& dark,
+                        const Image2D& flat,
+                        const std::string& dataMap,
+                        const std::string& starName);
+
+    std::pair<std::vector<double>, std::vector<double>> extract_light_curve(bool normalize = false);
+    void save_lightcurve(const std::string& outputPath) const;
+    std::vector<std::pair<double, double>> tuple_format() const;
+    std::vector<double> normalize_lightcurve() const;
+    tuple2D get_midpoint(const Image2D& img) const;
+
+private:
+    Image2D bias, dark, flat;
+    std::string data_map, star_name;
+    std::vector<std::string> file_list;
+    std::vector<double> photom_list, date_array;
+    Image2D reference_frame;
+
+
+
+
+
+
+};

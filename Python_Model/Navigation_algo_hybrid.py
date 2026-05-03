@@ -145,7 +145,7 @@ class Spacecraft:
     
     def observe_star_synthetic(self, star, t_grid, noise_sigma=0.0, scale_factor=1.0): # used for synthetic stars
         r_relative = self.r #+ self.r_earth # in AU
-        geom_delay = np.dot(star.uhat, r_relative) / Light_AU_D
+        geom_delay = np.dot(star.uhat, r_relative) / Light_AU_D # vector projection of position onto line of sight to get geometric delay in days
         dt_true = self.t_offset + geom_delay
         T = t_grid + dt_true
         
@@ -166,7 +166,7 @@ class Spacecraft:
     def observe_star_real(self, star, t_grid, noise_sigma=0.0, scale_factor=1.0): # used for real stars
         #r_relative = self.r + self.r_earth # in AU
         #geom_delay = np.dot(star.uhat, r_relative) / Light_AU_D
-        dt_true = self.t_offset + star.geometric_delay
+        dt_true = self.t_offset + star.geometric_delay # actually 0 for our case since we aligned the anchored model to the real model, but we can test sensitivity to misalignment by adjusting this.
         T = t_grid # + dt_true
         
         flux = star.model(T)[0] #from telescope
@@ -603,8 +603,6 @@ def main():
     plt.style.use(['science', 'no-latex'])
     plt.rcParams.update({'figure.dpi': '300'})
 
-        # Define our inputs
-
     #paths
     bias = [] 
     dark = []
@@ -663,9 +661,7 @@ def main():
    
     # time of observations for the real stars 
     t_obs  = Time('2025-11-16T02:43:07.685', scale='tdb')  # observation time for Earth position
-    
-    
-    #adjusted time  NON TARGET
+    #adjusted time  NON TARGET # Change in time adjustmnet applied to the anchored model to test sensitivity to time misalignment. This should be on the order of seconds to see significant effects.
     t_adjustment = Time('2025-12-05T02:01:46.505157', scale='tdb')
 
 
@@ -747,9 +743,6 @@ def main():
         observations.append(obs)
         print(f"Star: true Δt = {obs.true_delta_t*sec_d:.3f} s")
     
-    print()
-    
-  
     solver = NAV(stars)
     solution = solver.navigate(observations, max_candidates=3)
     
