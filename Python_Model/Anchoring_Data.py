@@ -99,8 +99,8 @@ class anchoringData:
     def get_anchored_lightcurve(self):
         self.time_delay = self.compute_light_travel_delay()
         t_Earth = self.time_array.value - self.time_delay
-        return t_Earth, self.flux_array
-    
+        return t_Earth, self.flux_array 
+        
     def pull_from_file(self, file_path):
         df = pd.read_csv(file_path)
         time_array = df['Time'].to_numpy()

@@ -262,7 +262,7 @@ class LightCurveExtractor:
                     plt.show()
                     plt.figure()
                 cords_transformed = np.array([(x4 + y1, y4 + x1)])
-                radii = np.arange(1,15)
+                radii = np.arange(1,15) ### Change to decimals   #######################
                 cog = CurveOfGrowth(data_adjusted, (x4,y4), radii, mask=None)
                 #cog = RadialProfile(data_background_subtracted, (x4,y4), radii, mask=None)
                 growth_rate = np.diff(cog.profile)
@@ -301,7 +301,7 @@ class LightCurveExtractor:
 
                 ap_radius = optimal_radius
                 ann_inner = optimal_radius #+ 5
-                ann_width = 3
+                ann_width = 3 # generous 
                 aper_t = aperture
                 ann_t = CircularAnnulus((x4,y4), r_in=ann_inner, r_out=ann_inner+ann_width)
 
@@ -340,6 +340,7 @@ class LightCurveExtractor:
             bkg_mean = photom_table['aperture_sum_1'] / area
             bkg_sum = bkg_mean * ap_area
             final_sum = photom_table['aperture_sum_0'] - bkg_sum
+            # covert to brightness per electron 
             final_sum /= ap_area  # normalize by aperture area to get mean flux per pixel in the aperture
 
             self.saving_constant += 1
