@@ -288,15 +288,19 @@ class LightCurveExtractor:
                     plt.ylabel("Y [pixels]")
 
                 # overlay aperture circles
+                print(len())
                 indexed_apertures = []
-                aperture = indexed_apertures[optimal_index]
+                print("What are my indexs: ")
+                print(optimal_index)
+                print(len(indexed_apertures))
+                #aperture = indexed_apertures[optimal_index]
 
-                if (plotting == True):
-                    for r in radii:
-                        aperture = CircularAperture((x4, y4), r=r)
-                        indexed_apertures.append(aperture)
-                        if(plotting == True):
-                            aperture.plot(lw=1, alpha=0.5)
+    
+                for r in radii:
+                    aperture = CircularAperture((x4, y4), r=r)
+                    indexed_apertures.append(aperture)
+                    if(plotting == True):
+                        aperture.plot(lw=1, alpha=0.5)
                     aperture = indexed_apertures[optimal_index]
 
                 ap_radius = optimal_radius

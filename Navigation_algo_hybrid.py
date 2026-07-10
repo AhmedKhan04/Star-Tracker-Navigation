@@ -559,7 +559,7 @@ def case_study():
 
     # True state
     r_true        = loc.get_gcrs(t_obs).transform_to(ICRS()).cartesian.xyz.to(u.AU).value
-    t_offset_true = 5.0
+    t_offset_true = 0.0 
     t_obs_jd      = t_obs.jd
 
     # Test configurations: (n_synthetic, n_real)
@@ -639,8 +639,8 @@ def main():
         #"data_maps/real_data_map_Delta Scuti 2025-11-15.csv",
         "data_maps/real_data_map_Alderamin (Alpha Cephi) 2025-11-15.csv",
         #"data_maps/real_data_map_IM Tauri 2025-11-15.csv"
-        "data_maps/real_data_map_97 Psc.csv",
-        "data_maps/real_data_map_Tau Cygni 2025-11-15.csv"
+        #"data_maps/real_data_map_97 Psc.csv",
+        #"data_maps/real_data_map_Tau Cygni 2025-11-15.csv"
     ]
 
     # star names
@@ -650,12 +650,12 @@ def main():
         #"Delta Scuti",
         "Alderamin",
         #"IM Tauri"
-        "TIC 381320713", ### 97 PSC
-        "Tau Cygni"
+        #"TIC 381320713", ### 97 PSC
+        #"Tau Cygni"
     ]
 
     Centroid_override = [
-      None, 1 , None#,  1, None #, None, None, 1#None #,1 #np.array([( 2012,3012)]) , #np.array([( 1994.7199021208542,3154.135590131793 )]),#None,
+      None#, 1 , None#,  1, None #, None, None, 1#None #,1 #np.array([( 2012,3012)]) , #np.array([( 1994.7199021208542,3154.135590131793 )]),#None,
     ]
     # Load calibration frames
    
@@ -711,7 +711,7 @@ def main():
     r_earth_ssb = get_body_barycentric('earth', t_obs).xyz.to(u.AU).value 
     r_true = loc.get_gcrs(t_obs).transform_to(ICRS()).cartesian.xyz.to(u.AU).value # + r_earth_ssb#np.array([0,0,1])  # AU relative to SSB
     
-    t_offset_true = 5 # seconds
+    t_offset_true = 0 # seconds
     
     print("TRUE STATE")
     print(f"  Position: {r_true} AU")
