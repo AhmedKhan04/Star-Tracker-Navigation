@@ -196,7 +196,7 @@ class Spacecraft:
 # -----------#
 # Navigation 
 
-
+# check
 class NAV:
     # Navigation solver class
     def __init__(self, stars):
