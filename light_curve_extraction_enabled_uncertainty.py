@@ -25,7 +25,6 @@ from astropy.coordinates import SkyCoord
 from astropy.wcs import WCS
 import astroalign as aa
 
-
 import Python_Model.modeling as sm 
 
 
@@ -37,7 +36,7 @@ initial = True
 
 photom_list = []
 light_curve_extraction = False
-plotting = False 
+plotting = False  
 date_array = []
 
 
@@ -62,6 +61,7 @@ class LightCurveExtractor:
         self.file_list = pd.read_csv(self.data_map)["FITS File Path"].values
         self.reference_frame = None 
         self.allignment_needed = 0
+        self.uncertainties =  []  # To store uncertainties for each photometric measurement
 
 
     def load_calibrated(self, data):
@@ -97,6 +97,7 @@ class LightCurveExtractor:
         outlier_indices = np.where(z_scores > threshold)[0]
         filtered_data = np.delete(data, outlier_indices)
         filtered_time = np.delete(time, outlier_indices)
+        self.uncertainties = np.delete(self.uncertainties, outlier_indices)  # Also remove corresponding uncertainties
         return filtered_data, filtered_time
 
     def extract_light_curve(self, normalize=False):
@@ -118,7 +119,9 @@ class LightCurveExtractor:
             # Manual scaling (fast)
             bscale = hdul[0].header.get('BSCALE', 1)
             bzero  = hdul[0].header.get('BZERO', 0)
-   
+            egain = hdul[0].header.get('EGAINSAV')          # 2.5308 electrons / ADU
+            read_noise = hdul[0].header.get('RDNOISE')   # 2.16 electrons / pixel
+            bias_adu = hdul[0].header.get('BIASADU')     # 322.67 ADU
 
             date_obs = hdul[0].header.get('DATE-AVG')
 
@@ -227,6 +230,7 @@ class LightCurveExtractor:
                 data_adjusted = calibrated_second # - background
                 PRE_MASK = data_adjusted
                 data_adjusted = data_adjusted[x1:x2, y1:y2]
+                data_adjusted_pre = copy.deepcopy(data_adjusted)
                 #data_background_subtracted = -np.min(data_background_subtracted) + data_background_subtracted
                 _, bkg_median, _ = sigma_clipped_stats(data_adjusted, sigma=3.0)
                 data_adjusted = data_adjusted - bkg_median 
@@ -288,19 +292,22 @@ class LightCurveExtractor:
                     plt.ylabel("Y [pixels]")
 
                 # overlay aperture circles
-                #print(len())
+
                 indexed_apertures = []
                 print("What are my indexs: ")
                 print(optimal_index)
-                print(len(indexed_apertures))
                 #aperture = indexed_apertures[optimal_index]
 
-    
+
                 for r in radii:
+
+
                     aperture = CircularAperture((x4, y4), r=r)
                     indexed_apertures.append(aperture)
                     if(plotting == True):
                         aperture.plot(lw=1, alpha=0.5)
+                    print(len(indexed_apertures))
+
                 aperture = indexed_apertures[optimal_index]
 
                 ap_radius = optimal_radius
@@ -334,8 +341,17 @@ class LightCurveExtractor:
 
             
             apertures = [aper_t, ann_t]
-            
-            photom_table = aperture_photometry(data_adjusted, apertures) # photom_table will contain aperture_sum and annulus_sum for each entry
+ 
+
+            signal_adu =  data_adjusted_pre
+          
+            signal_e = np.maximum(signal_adu * egain, 0)
+
+         
+            error_e = np.sqrt(signal_e + read_noise**2)
+            error_adu = error_e / egain  # Convert back to ADU for photutils
+
+            photom_table = aperture_photometry(data_adjusted, apertures, error = error_adu) # photom_table will contain aperture_sum and annulus_sum for each entry
    
             area =  np.pi * (ann_inner + ann_width)**2 - np.pi * (ann_inner)**2
             ap_area  = np.pi * (ann_inner**2)
@@ -349,6 +365,9 @@ class LightCurveExtractor:
 
             self.saving_constant += 1
             self.photom_list.append(final_sum.value[0])
+            print(f"Photometric measurement: {photom_table['aperture_sum_err_0'].value[0] / ap_area} ADU/pixel")
+            self.uncertainties.append(photom_table['aperture_sum_err_0'].value[0]/ ap_area)   # This is the uncertainty in the aperture sum
+            
             print(self.photom_list)
 
 
@@ -397,6 +416,27 @@ class LightCurveExtractor:
         plt.title(f"Light Curve of {self.star_name}")
         plt.show()
 
+    def plot_lightcurve_whisker(self):
+        if self.photom_list is None or self.date_array is None or self.uncertainties is None:
+            print("No light curve data to plot. Please run extract_light_curve() first.")
+            return
+        print("Plotting light curve...")
+        
+        plt.figure()
+        plt.errorbar(
+            self.date_array,
+            self.photom_list,
+            yerr=self.uncertainties, 
+            fmt=".",          # draw each flux point as a dot
+            markersize=5,
+            capsize=5,        # little horizontal caps at the ends of whiskers
+            elinewidth=2,
+            alpha=0.7)
+        plt.xlabel("Time (days since Kepler epoch)")
+        plt.ylabel("Flux (ADU)")
+        plt.title(f"Light Curve of {self.star_name}")
+        plt.show()
+
     def tuple_format(self):
         if self.photom_list is None or self.date_array is None:
             print("No light curve data to format. Please run extract_light_curve() first.")
@@ -414,9 +454,19 @@ class LightCurveExtractor:
         return n_photom_array
 
    
+# plt.style.use(['science', 'no-latex'])
+# plt.rcParams.update({'figure.dpi': '300'})
+plt.rcParams['font.family'] = "Times New Roman"
+bias_path_ad = "calibration_frames/Bias_1.0ms_Bin1_ISO100_20251205-065105_32.0F_0001.fit"
+#dark_path = #"calibration_frames\Dark_30.0s_Bin1_ISO100_20251205-065203_32.0F_0001.fit" #"calibration_frames/NGC0891 darks_00015.fits"
+dark_path_ad = 'calibration_frames/NGC0891 darks_00015.fits'
+flat_path_ad = "calibration_frames/Flat_300.0ms_Bin1_ISO100_20251205-064251_32.0F_0001.fit"
+data_map = "data_maps/real_data_map_Alderamin (Alpha Cephi) 2025-11-15.csv"
 
-
-        
+alpha = LightCurveExtractor(bias_path_ad, dark_path_ad, flat_path_ad, data_map, "Alderamin", Centroid_override = None )
+alpha.extract_light_curve(normalize=False)
+#alpha.plot_lightcurve_whisker()
+print("Uncertainties:", np.mean(alpha.uncertainties))
 
 
 
